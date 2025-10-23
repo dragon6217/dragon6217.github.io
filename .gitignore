@@ -1,0 +1,8 @@
+# Python 가상 환경
+.venv/
+
+# Quarto가 생성하는 웹사이트 결과물
+_site/
+
+/.quarto/
+**/*.quarto_ipynb

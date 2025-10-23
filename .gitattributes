@@ -1,0 +1,4 @@
+# 모든 텍스트 파일에 대해,
+# Git 저장소에는 LF로 정규화하고,
+# 내 Windows 작업 폴더에도 LF로 체크아웃해라.
+* text=auto eol=lf
