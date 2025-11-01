@@ -1,0 +1,9 @@
+---
+title: "컴파일러 최적화 기법"
+description: "컴파일러가 코드를 최적화하는 다양한 방법을 알아봅니다."
+date: "2025-11-02"
+categories: [CS, Compiler, Optimization]
+image: "images/cover_image.png"  # 이 포스트의 대표 이미지 (L2 목록에 표시됨)
+---
+
+## 포스트 본문 시작

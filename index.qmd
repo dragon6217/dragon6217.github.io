@@ -1,7 +1,21 @@
 ---
-title: "dragon6217.github.io"
+title: "My Tech & Math Blog"
 ---
 
-This is a Quarto website.
+## 분야별 탐구
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+이 블로그는 컴퓨터 과학과 수학의 다양한 주제를 다룹니다.
+
+::: {.grid}
+
+::: {.g-col-6 .g-col-md-6}
+### [Computer Science](./posts/cs/)
+컴파일러, 양자 컴퓨팅 등 컴퓨터 과학의 다양한 주제를 탐구합니다.
+:::
+
+::: {.g-col-6 .g-col-md-6}
+### [Mathematics](./posts/math/)
+측도론, 위상수학 등 순수 수학의 개념들을 정리합니다.
+:::
+
+:::

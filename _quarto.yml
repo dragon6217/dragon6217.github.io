@@ -1,5 +1,6 @@
 project:
   type: website
+  output-dir: _site
 
 website:
   title: "dragon6217.github.io"
@@ -7,15 +8,16 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      - href: posts/cs/index.qmd    # L2 CS 목록 페이지
+        text: Computer Science
+      - href: posts/math/index.qmd   # L2 Math 목록 페이지
+        text: Mathematics
+    right:
+      - icon: github
+        href: https://github.com/dragon6217
 
 format:
   html:
-    theme:
-      - cosmo
-      - brand
+    theme: cosmo  # 테마는 자유롭게 선택 (예: flatly, pulse, litera)
     css: styles.css
     toc: true
-
-
-
