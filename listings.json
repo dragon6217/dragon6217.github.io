@@ -2,8 +2,8 @@
   {
     "listing": "/posts/cs/index.html",
     "items": [
-      "/posts/cs/shor-algorithm/index.html",
-      "/posts/cs/optimization/index.html"
+      "/posts/cs/optimization/index.html",
+      "/posts/cs/shor-algorithm/index.html"
     ]
   }
 ]
