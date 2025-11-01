@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="dcterms.date" content="2025-11-02">
-<meta name="description" content="양자 컴퓨터가 어떻게 거대한 숫자를 빠르게 소인수분해할 수 있는지 알아봅니다. (L15, L16 강의 노트)">
+<meta name="description" content="양자 컴퓨터가 어떻게 거대한 숫자를 빠르게 소인수분해할 수 있는지 알아봅니다.">
 
 <title>쇼어 알고리즘 (Shor’s Algorithm) – dragon6217.github.io</title>
 <style>
@@ -158,7 +158,7 @@ window.Quarto = {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#l15-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n" id="toc-l15-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n" class="nav-link active" data-scroll-target="#l15-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n">L15: 쇼어 알고리즘의 핵심 - 주기 찾기 (Period-Finding over <span class="math inline">\(Z_N\)</span>)</a>
+  <li><a href="#part-1-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n" id="toc-part-1-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n" class="nav-link active" data-scroll-target="#part-1-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n">Part 1: 쇼어 알고리즘의 핵심 - 주기 찾기 (Period-Finding over <span class="math inline">\(Z_N\)</span>)</a>
   <ul class="collapse">
   <li><a href="#문제-설정-setup" id="toc-문제-설정-setup" class="nav-link" data-scroll-target="#문제-설정-setup">1. 문제 설정 (Setup)</a></li>
   <li><a href="#양자-푸리에-샘플링-패러다임-quantum-fourier-sampling-paradigm" id="toc-양자-푸리에-샘플링-패러다임-quantum-fourier-sampling-paradigm" class="nav-link" data-scroll-target="#양자-푸리에-샘플링-패러다임-quantum-fourier-sampling-paradigm">2. 양자 푸리에 샘플링 패러다임 (Quantum Fourier Sampling Paradigm)</a></li>
@@ -167,7 +167,7 @@ window.Quarto = {
   <li><a href="#현실적인-문제-l-nmid-n-l이-n을-나누지-않을-때" id="toc-현실적인-문제-l-nmid-n-l이-n을-나누지-않을-때" class="nav-link" data-scroll-target="#현실적인-문제-l-nmid-n-l이-n을-나누지-않을-때">5. 현실적인 문제: <span class="math inline">\(L \nmid N\)</span> (L이 N을 나누지 않을 때)</a></li>
   <li><a href="#수학적-보증-3-현실적인-성공-확률-4pi2" id="toc-수학적-보증-3-현실적인-성공-확률-4pi2" class="nav-link" data-scroll-target="#수학적-보증-3-현실적인-성공-확률-4pi2">6. 수학적 보증 3: “현실적인” 성공 확률 (<span class="math inline">\(4/\pi^2\)</span>)</a></li>
   </ul></li>
-  <li><a href="#l16-쇼어의-소인수분해-알고리즘-factoring-algorithm" id="toc-l16-쇼어의-소인수분해-알고리즘-factoring-algorithm" class="nav-link" data-scroll-target="#l16-쇼어의-소인수분해-알고리즘-factoring-algorithm">L16: 쇼어의 소인수분해 알고리즘 (Factoring Algorithm)</a>
+  <li><a href="#part-2-쇼어의-소인수분해-알고리즘-factoring-algorithm" id="toc-part-2-쇼어의-소인수분해-알고리즘-factoring-algorithm" class="nav-link" data-scroll-target="#part-2-쇼어의-소인수분해-알고리즘-factoring-algorithm">Part 2: 쇼어의 소인수분해 알고리즘 (Factoring Algorithm)</a>
   <ul class="collapse">
   <li><a href="#소인수분해-문제를-주기-찾기로-환원reduction하기" id="toc-소인수분해-문제를-주기-찾기로-환원reduction하기" class="nav-link" data-scroll-target="#소인수분해-문제를-주기-찾기로-환원reduction하기">7. 소인수분해 문제를 “주기 찾기”로 환원(Reduction)하기</a></li>
   <li><a href="#열쇠-r을-주기-l로-찾기" id="toc-열쇠-r을-주기-l로-찾기" class="nav-link" data-scroll-target="#열쇠-r을-주기-l로-찾기">8. “열쇠” <span class="math inline">\(R\)</span>을 “주기” <span class="math inline">\(L\)</span>로 찾기</a></li>
@@ -194,7 +194,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    양자 컴퓨터가 어떻게 거대한 숫자를 빠르게 소인수분해할 수 있는지 알아봅니다. (L15, L16 강의 노트)
+    양자 컴퓨터가 어떻게 거대한 숫자를 빠르게 소인수분해할 수 있는지 알아봅니다.
   </div>
 </div>
 
@@ -217,8 +217,8 @@ window.Quarto = {
 </header>
 
 
-<section id="l15-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n" class="level2">
-<h2 class="anchored" data-anchor-id="l15-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n">L15: 쇼어 알고리즘의 핵심 - 주기 찾기 (Period-Finding over <span class="math inline">\(Z_N\)</span>)</h2>
+<section id="part-1-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n" class="level2">
+<h2 class="anchored" data-anchor-id="part-1-쇼어-알고리즘의-핵심---주기-찾기-period-finding-over-z_n">Part 1: 쇼어 알고리즘의 핵심 - 주기 찾기 (Period-Finding over <span class="math inline">\(Z_N\)</span>)</h2>
 <p>Shor 알고리즘은 양자 알고리즘과 정수론을 결합한 것입니다. 이 알고리즘의 양자적 핵심은 <strong>“주기 찾기(Period-Finding)”</strong>입니다.</p>
 <section id="문제-설정-setup" class="level3">
 <h3 class="anchored" data-anchor-id="문제-설정-setup">1. 문제 설정 (Setup)</h3>
@@ -313,9 +313,9 @@ window.Quarto = {
 <hr>
 </section>
 </section>
-<section id="l16-쇼어의-소인수분해-알고리즘-factoring-algorithm" class="level2">
-<h2 class="anchored" data-anchor-id="l16-쇼어의-소인수분해-알고리즘-factoring-algorithm">L16: 쇼어의 소인수분해 알고리즘 (Factoring Algorithm)</h2>
-<p>이제 L15에서 완성한 “주기 찾기” 알고리즘을 무기로 사용하여, 고전적으로 풀기 어려운 <strong>소인수분해(Factoring)</strong> 문제를 풉니다.</p>
+<section id="part-2-쇼어의-소인수분해-알고리즘-factoring-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="part-2-쇼어의-소인수분해-알고리즘-factoring-algorithm">Part 2: 쇼어의 소인수분해 알고리즘 (Factoring Algorithm)</h2>
+<p>이제 Part 1에서 완성한 “주기 찾기” 알고리즘을 무기로 사용하여, 고전적으로 풀기 어려운 <strong>소인수분해(Factoring)</strong> 문제를 풉니다.</p>
 <section id="소인수분해-문제를-주기-찾기로-환원reduction하기" class="level3">
 <h3 class="anchored" data-anchor-id="소인수분해-문제를-주기-찾기로-환원reduction하기">7. 소인수분해 문제를 “주기 찾기”로 환원(Reduction)하기</h3>
 <p>Shor의 핵심 아이디어는 1970년대에 이미 알려진 고전 정수론을 활용한 것입니다.</p>
@@ -340,7 +340,7 @@ window.Quarto = {
 <li><strong>[Random Sampling]</strong> <span class="math inline">\(B\)</span>와 서로소인 임의의 수 <span class="math inline">\(A\)</span>를 고릅니다 ( <span class="math inline">\(1 &lt; A &lt; B\)</span> ).</li>
 <li><strong>[The Function]</strong> <span class="math inline">\(A\)</span>를 밑(base)으로 하는 다음 함수 <span class="math inline">\(F_A(x)\)</span>를 정의합니다: <span class="math display">\[F_A(x) = A^x \pmod{B}\]</span></li>
 <li><strong>[The Period “L”]</strong> 이 함수는 주기적입니다. 이 함수의 주기 <span class="math inline">\(L\)</span>은 <span class="math inline">\(A^L \equiv 1 \pmod{B}\)</span> 를 만족하는 <strong>가장 작은 양의 정수 <span class="math inline">\(L\)</span></strong> ( <span class="math inline">\(A\)</span>의 “차수(order)”)입니다.</li>
-<li><strong>[The Final Link]</strong> L15의 양자 알고리즘으로 이 주기 <span class="math inline">\(L\)</span>을 찾았다고 합시다.
+<li><strong>[The Final Link]</strong> Part 1의 양자 알고리즘으로 이 주기 <span class="math inline">\(L\)</span>을 찾았다고 합시다.
 <ul>
 <li>만약 <span class="math inline">\(L\)</span>이 <strong>짝수</strong>라면 (랜덤 <span class="math inline">\(A\)</span>에 대해 그럴 확률이 높음), <span class="math inline">\(A^L \equiv 1 \pmod{B}\)</span> 는 <span class="math inline">\((A^{L/2})^2 \equiv 1 \pmod{B}\)</span> 로 쓸 수 있습니다.</li>
 <li><strong>“열쇠” <span class="math inline">\(R\)</span>을 찾았습니다! <span class="math inline">\(\implies R = A^{L/2}\)</span></strong></li>
@@ -348,13 +348,13 @@ window.Quarto = {
 <li><span class="math inline">\(R \not\equiv -1 \pmod{B}\)</span> 일 확률(즉, 비자명할 확률)도 50% 이상임이 알려져 있습니다 (아래 10번 참조).</li>
 </ul></li>
 </ol>
-<p><strong>최종 환원:</strong> 소인수분해(<span class="math inline">\(B\)</span>) <span class="math inline">\(\to\)</span> 비자명 제곱근(<span class="math inline">\(R\)</span>) 찾기 <span class="math inline">\(\to\)</span> <span class="math inline">\(A^x \pmod{B}\)</span>의 주기(<span class="math inline">\(L\)</span>) 찾기 <span class="math inline">\(\to\)</span> <strong>L15의 양자 주기 찾기 알고리즘 사용!</strong></p>
+<p><strong>최종 환원:</strong> 소인수분해(<span class="math inline">\(B\)</span>) <span class="math inline">\(\to\)</span> 비자명 제곱근(<span class="math inline">\(R\)</span>) 찾기 <span class="math inline">\(\to\)</span> <span class="math inline">\(A^x \pmod{B}\)</span>의 주기(<span class="math inline">\(L\)</span>) 찾기 <span class="math inline">\(\to\)</span> <strong>Part 1의 양자 주기 찾기 알고리즘 사용!</strong></p>
 </section>
 <section id="양자적-병목-현상-및-n-ge-2m1-조건" class="level3">
 <h3 class="anchored" data-anchor-id="양자적-병목-현상-및-n-ge-2m1-조건">9. 양자적 병목 현상 및 <span class="math inline">\(n \ge 2m+1\)</span> 조건</h3>
 <ul>
 <li><strong>[병목]</strong> 우리가 양자 컴퓨터로 구현할 <span class="math inline">\(F_A(x) = A^x \pmod{B}\)</span> (모듈러 지수 연산)은 “제곱-곱셈” 알고리즘을 사용하며, 약 <span class="math inline">\(O(m^3)\)</span> (<span class="math inline">\(m = \log B\)</span>) 개의 게이트를 필요로 합니다. 이것이 Shor 알고리즘의 <strong>양자적 병목 현상</strong>입니다.</li>
-<li><strong>[정밀도]</strong> <span class="math inline">\(L\)</span>을 찾는 주기 찾기 알고리즘(L15)이 <span class="math inline">\(\frac{s}{N} \approx \frac{k}{L}\)</span> 라는 근사값을 고전적인 “연분수 알고리즘”으로 풀 수 있으려면, Input 레지스터의 크기 <span class="math inline">\(n\)</span> (<span class="math inline">\(N=2^n\)</span>)이 <span class="math inline">\(L\)</span>에 비해 압도적으로 커야 합니다.</li>
+<li><strong>[정밀도]</strong> <span class="math inline">\(L\)</span>을 찾는 주기 찾기 알고리즘(Part 1)이 <span class="math inline">\(\frac{s}{N} \approx \frac{k}{L}\)</span> 라는 근사값을 고전적인 “연분수 알고리즘”으로 풀 수 있으려면, Input 레지스터의 크기 <span class="math inline">\(n\)</span> (<span class="math inline">\(N=2^n\)</span>)이 <span class="math inline">\(L\)</span>에 비해 압도적으로 커야 합니다.</li>
 <li><strong>[조건 증명]</strong> <span class="math inline">\(L\)</span>은 <span class="math inline">\(B \approx 2^m\)</span> 보다 작습니다. 정수론에 따르면, 분모가 <span class="math inline">\(B\)</span>보다 작은 두 다른 분수 <span class="math inline">\(k/L\)</span>, <span class="math inline">\(k'/L'\)</span>의 차이는 <span class="math inline">\(|\frac{k}{L} - \frac{k'}{L'}| &gt; \frac{1}{B^2} \approx \frac{1}{2^{2m}}\)</span> 입니다. 우리의 알고리즘 오차 <span class="math inline">\(\epsilon = |\frac{S}{N} - \frac{k}{L}| \le \frac{1}{2N} = \frac{1}{2^{n+1}}\)</span> 입니다. 연분수 알고리즘이 “가짜 답”과 “진짜 답”을 구별하려면, 오차(<span class="math inline">\(\epsilon\)</span>)가 두 답 사이의 최소 거리(<span class="math inline">\(1/B^2\)</span>)보다 작아야 합니다. <span class="math inline">\(\frac{1}{2^{n+1}} &lt; \frac{1}{2^{2m}} \implies n+1 &gt; 2m \implies n \ge 2m+1\)</span> <span class="math inline">\(\to\)</span> <span class="math inline">\(m\)</span>비트 숫자를 소인수분해하려면 <strong>최소 <span class="math inline">\(n=2m+1\)</span> 비트의 Input 레지스터가 필요</strong>합니다.</li>
 </ul>
 </section>
