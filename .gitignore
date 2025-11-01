@@ -4,5 +4,9 @@
 # Quarto가 생성하는 웹사이트 결과물
 _site/
 
+# Quarto 캐시 및 설정
 /.quarto/
 **/*.quarto_ipynb
+
+# 각 포스트의 전처리 폴더 무시 (✨ 새로 추가)
+posts/**/preproc/
