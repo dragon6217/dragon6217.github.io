@@ -2,18 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://dragon6217.github.io/about.html</loc>
-    <lastmod>2025-11-01T22:31:46.352Z</lastmod>
+    <lastmod>2025-11-01T23:50:48.946Z</lastmod>
+  </url>
+  <url>
+    <loc>https://dragon6217.github.io/posts/cs/shor-algorithm/index.html</loc>
+    <lastmod>2025-11-01T23:50:48.947Z</lastmod>
   </url>
   <url>
     <loc>https://dragon6217.github.io/posts/cs/optimization/index.html</loc>
-    <lastmod>2025-11-01T22:31:46.353Z</lastmod>
+    <lastmod>2025-11-01T23:50:48.947Z</lastmod>
   </url>
   <url>
     <loc>https://dragon6217.github.io/index.html</loc>
-    <lastmod>2025-11-01T22:31:46.352Z</lastmod>
+    <lastmod>2025-11-01T23:50:48.946Z</lastmod>
   </url>
   <url>
     <loc>https://dragon6217.github.io/posts/cs/index.html</loc>
-    <lastmod>2025-11-01T22:31:46.353Z</lastmod>
+    <lastmod>2025-11-01T23:50:48.946Z</lastmod>
   </url>
 </urlset>
