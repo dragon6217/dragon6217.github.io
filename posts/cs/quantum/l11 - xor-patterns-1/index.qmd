@@ -1,0 +1,203 @@
+---
+title: "L11. Revealing XOR-patterns I (Bernstein-Vazirani)"
+description: "양자 알고리즘의 핵심인 '위상 반동(Phase Kickback)' 트릭을 배우고, 'Hadamard-Oracle-Hadamard' 구조를 사용해 $F(x) = s^* \cdot x$ 형태의 숨겨진 XOR-pattern(s*)을 단 한 번의 호출로 찾는 Bernstein-Vazirani 알고리즘을 분석합니다. 이는 양자 컴퓨터가 고전 컴퓨터보다 강력함(QC 1회 vs CC n회)을 보여주는 핵심 예제입니다."
+author: "Analysis by Gemini"
+date: "2025-11-03"
+categories: [Quantum Computing, Quantum Algorithms, Bernstein-Vazirani, Oracle]
+image: "images/cover.png"
+---
+
+## L11. Revealing XOR-patterns I
+
+### 1. 복습 (Recap): 양자 회로로 고전 함수 구현하기
+
+L10에서 우리는 $F: \{0,1\}^n \to \{0,1\}^m$ 형태의 모든 고전 함수를 "쓰레기(garbage)" 비트 없이 효율적인 양자 회로 $Q_F$로 변환할 수 있음을 배웠습니다. 이 $Q_F$는 고전 입력뿐만 아니라 **중첩(superposition) 상태**의 입력도 받을 수 있습니다.
+
+#### 1.1. 표준 구현 (XOR Oracle)
+
+"양자 회로 $Q_F$가 $F$를 구현한다"는 것의 표준 정의는 다음과 같습니다.
+
+$$Q_F: |x\rangle |b\rangle |0 \dots 0\rangle \mapsto |x\rangle |b \oplus F(x)\rangle |0 \dots 0\rangle$$
+
+* $|x\rangle \in \{0,1\}^n$: **입력 레지스터 (input register)**
+* $|b\rangle \in \{0,1\}^m$: **출력 레지스터 (output register)** (보통 $|0\rangle^{\otimes m}$으로 초기화됨)
+* $|0 \dots 0\rangle$: **보조 큐비트 (ancillas)** (연산 후 $|0\rangle$으로 되돌아오는 "촉매")
+
+(표기 편의상, ancilla 레지스터는 $Q_F: |x\rangle |b\rangle \mapsto |x\rangle |b \oplus F(x)\rangle$로 생략하고 쓸 수 있습니다.)
+
+---
+
+### 2. 핵심 트릭: 부호 구현 (Sign Implementation)
+
+가장 중요하고 빈번하게 사용되는 경우는 $m=1$ (즉, $F: \{0,1\}^n \to \{0,1\}$)일 때, 출력 레지스터를 $|-\rangle$ 상태로 초기화하는 것입니다.
+
+* **Case 3: $|b\rangle = |-\rangle = \frac{1}{\sqrt{2}}(|0\rangle - |1\rangle)$**
+    * $Q_F$는 선형(linear) 연산자이므로, 중첩 상태의 각 항에 개별적으로 작용합니다.
+    * $Q_F \left( |x\rangle |-\rangle \right) = |x\rangle \otimes \left[ \frac{1}{\sqrt{2}} \left( |F(x)\rangle - |\neg F(x)\rangle \right) \right]$
+
+이제 $F(x)$의 결과(0 또는 1)에 따라 이 상태가 어떻게 변하는지 살펴봅니다.
+
+* **만약 $F(x) = 0$ 이라면:**
+    * $|x\rangle \otimes \left[ \frac{1}{\sqrt{2}} \left( |0\rangle - |1\rangle \right) \right] = |x\rangle |-\rangle$ (변화 없음)
+
+* **만약 $F(x) = 1$ 이라면:**
+    * $|x\rangle \otimes \left[ \frac{1}{\sqrt{2}} \left( |1\rangle - |0\rangle \right) \right] = -|x\rangle |-\rangle$ (전체 위상에 -1이 붙음)
+
+#### 2.1. 위상 반동 (Phase Kickback)
+
+이 두 경우를 하나로 합치면 **"위상 반동(Phase Kickback)"** (혹은 "부호 구현") 트릭을 얻습니다.
+
+$$Q_F \left( |x\rangle |-\rangle \right) = (-1)^{F(x)} |x\rangle |-\rangle$$
+
+
+
+$F(x)$의 계산 결과(0 또는 1)가 출력 레지스터 $|-\rangle$를 바꾸는 대신, **입력 레지스터 $|x\rangle$에 $1$ 또는 $-1$의 위상(부호)으로 "반동"**되었습니다.
+
+* **중요성:** 출력 레지스터 $|-\rangle$는 연산 후에도 **전혀 변하지 않고** 입력 레지스터와 **얽히지(entangled) 않습니다.**
+* 이는 입력 레지스터가 $\sum_x \alpha_x |x\rangle$와 같은 중첩 상태일 때, $F(x)$의 정보를 각 $|x\rangle$ 항의 위상에만 깨끗하게(entanglement 없이) 저장할 수 있게 해줍니다.
+    * $Q_F \left( \left( \sum_x \alpha_x |x\rangle \right) |-\rangle \right) = \left( \sum_x \alpha_x (-1)^{F(x)} |x\rangle \right) |-\rangle$
+
+### 3. 부호 구현 (Sign Implementation)의 공식화
+
+이 트릭을 사용해, $F: \{0,1\}^n \to \{0,1\}$ 함수를 위한 **"부호 오라클 (Sign Oracle)" $V_F$**를 정의할 수 있습니다.
+
+> **[정의] 부호 구현 (Sign Implementation)**
+> $V_F$는 입력 레지스터 $|x\rangle$에만 작용하며, $F(x)$의 값을 위상에 인코딩하는 연산이다.
+> $$V_F: |x\rangle \mapsto (-1)^{F(x)} |x\rangle$$
+
+---
+
+### 4. 예제: NEQ (Not-Equals) 함수
+
+$n=2$인 함수 $F(x_1, x_2) = x_1 \oplus x_2$ (NEQ 함수)를 살펴봅시다.
+
+**NEQ 함수의 진리표 (Truth Table):**
+* $F(00) = 0 \implies (-1)^{F(00)} = +1$
+* $F(01) = 1 \implies (-1)^{F(01)} = -1$
+* $F(10) = 1 \implies (-1)^{F(10)} = -1$
+* $F(11) = 0 \implies (-1)^{F(11)} = +1$
+
+### 5. Rotate - Compute - Rotate 알고리즘
+
+$F(x)$의 패턴을 추출하기 위해, "Compute" 단계(Oracle) 앞뒤로 "Rotate" 단계(Hadamard)를 추가합니다. 이것이 양자 알고리즘의 표준적인 **H-V-H 구조**입니다.
+
+
+
+> **`quantee` 코드 스니펫 (H-V_F-H Structure):**
+> ```yaml
+> ::: {quantee}
+> qcircuit:
+>   qubits: 3
+>   circuit:
+>     # 1. Rotate (Prepare input superposition)
+>     - H: [0, 1]
+>     # Prepare ancilla for Phase Kickback
+>     - X: 2
+>     - H: 2
+>     - barrier: true
+>     # 2. Compute (Oracle V_F implementation)
+>     - gate: Q_F
+>       qubits: [0, 1, 2]
+>       props:
+>         name: 'V_F(NEQ)'
+>         label: 'U_f'
+>     - barrier: true
+>     # 3. Rotate (Extract information)
+>     - H: [0, 1]
+>     - barrier: true
+>     - measure: [0, 1]
+> :::
+> ```
+
+#### 5.1. 알고리즘 실행 (NEQ 예제)
+
+1.  **[Rotate 1] 준비 ($H^{\otimes 2}$):**
+    * $H^{\otimes 2} |00\rangle = |++\rangle = \frac{1}{2} \left( |00\rangle + |01\rangle + |10\rangle + |11\rangle \right)$
+
+2.  **[Compute] 계산 ($V_F$):** $V_F$를 적용하여 위상에 NEQ 진리표를 인코딩합니다.
+    * $|\psi_1\rangle = V_F \left[ \frac{1}{2} \left( |00\rangle + |01\rangle + |10\rangle + |11\rangle \right) \right]$
+    * $|\psi_1\rangle = \frac{1}{2} \left( (+1)|00\rangle + (-1)|01\rangle + (-1)|10\rangle + (+1)|11\rangle \right)$
+
+3.  **[Rotate 2] 추출 ($H^{\otimes 2}$):** $|\psi_1\rangle$에 $H^{\otimes 2}$를 다시 적용합니다. 이 과정에서 $F(x)$의 패턴 정보가 **"간섭(Interference)"**을 통해 추출됩니다.
+    * $|\psi_{\text{final}}\rangle = H^{\otimes 2} |\psi_1\rangle$
+    * $|11\rangle$ 상태로 **결맞는 간섭(constructive interference)**이 일어나고,
+    * 다른 모든 상태($|00\rangle, |01\rangle, |10\rangle$)는 **상쇄 간섭(destructive interference)**으로 진폭이 0이 됩니다.
+    * (계산 결과) $\implies |\psi_{\text{final}}\rangle = |11\rangle$
+
+**결과:** $H-V_F-H$ 회로를 실행한 후 입력 레지스터를 측정하면, **100% 확률로 $|11\rangle$**을 얻습니다. 이 $|11\rangle$은 $F(x_1, x_2) = x_1 \oplus x_2 = (\mathbf{1} \cdot x_1) \oplus (\mathbf{1} \cdot x_2)$의 숨겨진 **XOR-패턴**인 $s^*=(1,1)$을 드러냅니다.
+
+---
+
+### 6. 쓰레기(Garbage)가 간섭을 망치는 이유
+
+L10에서 배운 "쓰레기 되돌리기(Uncomputing)"가 왜 필수적인지 다시 확인합니다. 만약 "Compute" 단계($V_F$)가 각 입력 $x$마다 다른 쓰레기 $|g_x\rangle$를 생성한다면:
+
+* $|\psi_1\rangle = \frac{1}{2} \left( (+1)|00\rangle|g_0\rangle + (-1)|01\rangle|g_1\rangle + (-1)|10\rangle|g_2\rangle + (+1)|11\rangle|g_3\rangle \right)$
+* $H^{\otimes 2}$ 적용 후 $|11\rangle$의 최종 진폭은 $\frac{1}{4} |11\rangle \otimes \left( |g_0\rangle + |g_1\rangle + |g_2\rangle + |g_3\rangle \right)$가 됩니다.
+* 만약 모든 쓰레기가 $|0\rangle$으로 동일하면($g_0=g_1=g_2=g_3=|0\rangle$), 진폭은 $1 \cdot |11\rangle|0\rangle$이 되어 완벽한 결맞는 간섭이 일어납니다.
+* 하지만 $g_x$들이 모두 다르다면, $\left( \dots \right)$ 항은 상쇄되지 않아 간섭 패턴이 망가지고 100% 확률을 얻지 못합니다.
+
+**결론:** **쓰레기 되돌리기(Uncomputing the garbage)는 간섭 패턴이 올바르게 나타나도록(interference patterns to emerge) 하는 데 매우 중요합니다.**
+
+---
+
+### 7. H-V-H 패러다임의 수학적 분석
+
+이 알고리즘을 $n$-qubit으로 일반화하여 수학적으로 분석합니다. ( $N = 2^n$ )
+
+#### 7.1. [Rotate 1] 균등 중첩 (Uniform Superposition)
+$$
+|\psi_0\rangle = H^{\otimes n} |0\rangle^{\otimes n} = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} |x\rangle
+$$
+
+#### 7.2. [Compute] 부호 오라클 (Sign Oracle)
+$\hat{F}(x) = (-1)^{F(x)}$라고 정의하면,
+$$
+|\psi_1\rangle = V_F |\psi_0\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} \hat{F}(x) |x\rangle
+$$
+
+#### 7.3. [Rotate 2] Boolean Fourier Transform (Hadamard Transform)
+$H^{\otimes n}$ 변환의 수학적 정의는 $s \cdot x \equiv \sum_i s_i x_i \pmod 2$ (비트별 내적)을 사용하여 다음과 같이 표현됩니다.
+
+> **[정리] Hadamard Transform (BFT)**
+> $$H^{\otimes n} |x\rangle = \frac{1}{\sqrt{N}} \sum_{s \in \{0,1\}^n} (-1)^{s \cdot x} |s\rangle$$
+
+$H^{\otimes n}$은 그 자체가 역변환이므로($H^{\otimes n} H^{\otimes n} = I$), $x$와 $s$를 바꿔도 성립합니다.
+
+> **[따름정리 1] Inverse Hadamard Transform**
+> $$H^{\otimes n} |s\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} (-1)^{s \cdot x} |x\rangle$$
+
+---
+
+### 8. 결론: XOR-Pattern의 발견 (증명)
+
+이제, 우리가 찾고자 하는 함수 $F(x)$가 실제로 **숨겨진 문자열 $s^* \in \{0,1\}^n$** 와의 XOR-pattern이라고 가정합니다.
+
+**가정: $F(x) = s^* \cdot x$**
+(NEQ 예제에서는 $s^*=(1,1)$ 이었습니다.)
+
+1.  **[Rotate 1]:** $|\psi_0\rangle = \frac{1}{\sqrt{N}} \sum_x |x\rangle$
+2.  **[Compute]:**
+    $|\psi_1\rangle = \frac{1}{\sqrt{N}} \sum_x (-1)^{F(x)} |x\rangle = \frac{1}{\sqrt{N}} \sum_x (-1)^{s^* \cdot x} |x\rangle$
+3.  **[Rotate 2] (간섭):**
+    $|\psi_{\text{final}}\rangle = H^{\otimes n} |\psi_1\rangle = H^{\otimes n} \left( \frac{1}{\sqrt{N}} \sum_x (-1)^{s^* \cdot x} |x\rangle \right)$
+
+    **[따름정리 1]**에 의해, 괄호 안의 식은 $H^{\otimes n} |s^*\rangle$와 정확히 같습니다.
+    
+    따라서,
+    $$|\psi_{\text{final}}\rangle = H^{\otimes n} \left( H^{\otimes n} |s^*\rangle \right) = (H^{\otimes n} H^{\otimes n}) |s^*\rangle = I |s^*\rangle = |s^*\rangle$$
+
+**최종 결론 (증명 완료):**
+만약 함수 $F(x)$가 $F(x) = s^* \cdot x$ 형태의 XOR-pattern이라면, **$H-V-H$ 알고리즘**을 단 한 번 실행한 뒤 최종 상태를 측정하면, 우리는 **100% 확률로 숨겨진 패턴 문자열 $|s^*\rangle$**를 얻습니다.
+
+---
+
+### 9. Bernstein-Vazirani 알고리즘의 의의
+
+이 결과는 **Bernstein-Vazirani 알고리즘**으로 알려져 있습니다.
+
+* **문제:** $F(x) = s^* \cdot x$를 계산하는 미스터리 오라클 $V_F$가 주어졌을 때, $s^*$를 찾으시오.
+* **양자 해법 (QC):** $H-V_F-H$ 회로를 통해 **단 1번의 오라클 호출**로 $s^*$를 100% 확률로 찾습니다. (중첩을 사용하여 $2^n$개의 모든 정보를 한 번에 처리)
+* **고전 해법 (CC):** $s^*$의 $n$개 비트를 알아내기 위해, 최소 **$n$번의 오라클 호출**이 필요합니다. (예: $x=(1,0..0), x=(0,1..0)$ 등을 차례로 입력)
+
+Bernstein-Vazirani 알고리즘은 (오라클 모델에서) **1 (QC) vs $n$ (CC)**이라는, 양자 컴퓨팅과 고전 컴퓨팅의 능력에 **"진정한 차이(genuine difference)"**가 있음을 증명한 매우 중요한 사례입니다.
