@@ -7,5 +7,19 @@
       "/posts/cs/compiler/3-optimization/index.html",
       "/posts/cs/compiler/4-toolkit/index.html"
     ]
+  },
+  {
+    "listing": "/posts/cs/quantum/index.html",
+    "items": [
+      "/posts/cs/quantum/l10 - qc-basics/index.html",
+      "/posts/cs/quantum/l11 - xor-patterns-1/index.html",
+      "/posts/cs/quantum/l12 - xor-patterns-2/index.html",
+      "/posts/cs/quantum/l13 - simon/index.html",
+      "/posts/cs/quantum/l14 - qft-zn/index.html",
+      "/posts/cs/quantum/l15 - period-finding/index.html",
+      "/posts/cs/quantum/l16 - shor/index.html",
+      "/posts/cs/quantum/l17 - hsp/index.html",
+      "/posts/cs/quantum/l18 - grover/index.html"
+    ]
   }
 ]

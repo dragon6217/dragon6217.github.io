@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>컴파일러 백엔드 시리즈 – dragon6217.github.io</title>
+<title>양자 컴퓨팅 시리즈 – dragon6217.github.io</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -183,20 +183,14 @@ window.Quarto = {
 <!-- sidebar -->
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">On this page</h2>
-   
-  <ul>
-  <li><a href="#컴파일러-백엔드-시리즈" id="toc-컴파일러-백엔드-시리즈" class="nav-link active" data-scroll-target="#컴파일러-백엔드-시리즈">컴파일러 백엔드 시리즈</a></li>
-  </ul>
-</nav>
-    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(4)</span></div><div class="category" data-category="QnJpbA==">Bril <span class="quarto-category-count">(4)</span></div><div class="category" data-category="Q0ZH">CFG <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Q29tcGlsZXI=">Compiler <span class="quarto-category-count">(4)</span></div><div class="category" data-category="RGF0YWZsb3c=">Dataflow <span class="quarto-category-count">(1)</span></div><div class="category" data-category="RG9taW5hdG9y">Dominator <span class="quarto-category-count">(1)</span></div><div class="category" data-category="TFZO">LVN <span class="quarto-category-count">(1)</span></div><div class="category" data-category="T3B0aW1pemF0aW9u">Optimization <span class="quarto-category-count">(1)</span></div><div class="category" data-category="UHl0aG9u">Python <span class="quarto-category-count">(4)</span></div><div class="category" data-category="U1NB">SSA <span class="quarto-category-count">(2)</span></div><div class="category" data-category="VERDRQ==">TDCE <span class="quarto-category-count">(1)</span></div></div></div>
+        
+    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(9)</span></div><div class="category" data-category="QmVybnN0ZWluLVZhemlyYW5p">Bernstein-Vazirani <span class="quarto-category-count">(2)</span></div><div class="category" data-category="RXhwb25lbnRpYWwlMjBTcGVlZHVw">Exponential Speedup <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Rm91cmllciUyMFRyYW5zZm9ybQ==">Fourier Transform <span class="quarto-category-count">(1)</span></div><div class="category" data-category="T3JhY2xl">Oracle <span class="quarto-category-count">(2)</span></div><div class="category" data-category="UUZU">QFT <span class="quarto-category-count">(1)</span></div><div class="category" data-category="UXVhbnR1bSUyMEFsZ29yaXRobXM=">Quantum Algorithms <span class="quarto-category-count">(4)</span></div><div class="category" data-category="UXVhbnR1bSUyMEJhc2ljcw==">Quantum Basics <span class="quarto-category-count">(1)</span></div><div class="category" data-category="UXVhbnR1bSUyMENvbXB1dGluZw==">Quantum Computing <span class="quarto-category-count">(5)</span></div><div class="category" data-category="UmV2ZXJzaWJsZSUyMENvbXB1dGluZw==">Reversible Computing <span class="quarto-category-count">(1)</span></div><div class="category" data-category="U2hvcidzJTIwQWxnb3JpdGht">Shor's Algorithm <span class="quarto-category-count">(1)</span></div><div class="category" data-category="U2ltb24ncyUyMEFsZ29yaXRobQ==">Simon's Algorithm <span class="quarto-category-count">(2)</span></div></div></div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">컴파일러 백엔드 시리즈</h1>
+<h1 class="title">양자 컴퓨팅 시리즈</h1>
 </div>
 
 
@@ -213,49 +207,38 @@ window.Quarto = {
 </header>
 
 
-<section id="컴파일러-백엔드-시리즈" class="level2">
-<h2 class="anchored" data-anchor-id="컴파일러-백엔드-시리즈">컴파일러 백엔드 시리즈</h2>
-<p>컴파일러 최적화의 기반이 되는 CFG, SSA, 데이터 흐름 분석 등을 단계별로 구현합니다.</p>
+<p>양자 알고리즘의 핵심 원리를 탐구합니다.</p>
 
 
 
-</section>
 
 <div class="quarto-listing quarto-listing-container-grid" id="listing-listing">
-<div class="listing-actions-group">
-    <div class="input-group input-group-sm quarto-listing-filter">
-      <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input type="text" class="search form-control" placeholder="Filter">
-    </div>
-</div>
 <div class="list grid quarto-listing-cols-3">
-<div class="g-col-1" data-index="0" data-categories="Q29tcGlsZXIlMkNQeXRob24lMkNCcmlsJTJDQ0ZH" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346521" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="11" data-listing-word-count-sort="2140">
-<a href="../../../posts/cs/compiler/1-cfg/index.html" class="quarto-grid-link">
+<div class="g-col-1" data-index="0" data-categories="UXVhbnR1bSUyMENvbXB1dGluZyUyQ1F1YW50dW0lMjBCYXNpY3MlMkNSZXZlcnNpYmxlJTIwQ29tcHV0aW5n" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346521" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1318">
+<a href="../../../posts/cs/quantum/l10 - qc-basics/index.html" class="quarto-grid-link">
 <div class="quarto-grid-item card h-100 card-left">
 <p class="card-img-top">
-<img loading="lazy" src="../../../posts/cs/compiler/1-cfg/images/cover_cfg.png" class="thumbnail-image card-img" style="height: 150px;">
+<img loading="lazy" src="../../../posts/cs/quantum/l10 - qc-basics/images/cover.png" class="thumbnail-image card-img" style="height: 150px;">
 </p>
 <div class="card-body post-contents">
 <h5 class="no-anchor card-title listing-title">
-컴파일러 백엔드 시리즈 1부: 제어 흐름 그래프(CFG) 구축하기
+L10. Basics of Quantum Computing
 </h5>
 <div class="listing-categories">
 
-<div class="listing-category" onclick="window.quartoListingCategory('Q29tcGlsZXI='); return false;">Compiler</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMENvbXB1dGluZw=='); return false;">Quantum Computing</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('UHl0aG9u'); return false;">Python</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMEJhc2ljcw=='); return false;">Quantum Basics</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('QnJpbA=='); return false;">Bril</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('Q0ZH'); return false;">CFG</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UmV2ZXJzaWJsZSUyMENvbXB1dGluZw=='); return false;">Reversible Computing</div>
 
 </div>
 <div class="card-text listing-description delink">
-<p>Bril IR을 입력받아 선형적인 코드를 기본 블록(Basic Block)으로 분할하고, 이를 연결하여 모든 분석의 기초가 되는 제어 흐름 그래프(CFG)를 구축 및 시각화하는 과정을 분석합니다.</p>
+<p>양자 회로가 고전 회로보다 강력한지(QC &gt;= CC) 탐구합니다. 고전 연산의 비가역성(irreversibility) 문제를 &lt;쓰레기 되돌리기(uncomputing)&gt; 트릭으로 해결하고, 양자 병렬성을 위한 표준 연산 $|x|y|x|y …</p>
 </div>
 <div class="card-attribution card-text-small justify">
 <div class="listing-author">
-
+Analysis by Gemini
 </div>
 <div class="listing-date">
 Nov 2, 2025
@@ -264,35 +247,70 @@ Nov 2, 2025
 </div>
 </div></a>
 </div>
-<div class="g-col-1" data-index="1" data-categories="Q29tcGlsZXIlMkNQeXRob24lMkNCcmlsJTJDU1NBJTJDRG9taW5hdG9y" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346521" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="12" data-listing-word-count-sort="2214">
-<a href="../../../posts/cs/compiler/2-ssa/index.html" class="quarto-grid-link">
+<div class="g-col-1" data-index="1" data-categories="UXVhbnR1bSUyMENvbXB1dGluZyUyQ1F1YW50dW0lMjBBbGdvcml0aG1zJTJDQmVybnN0ZWluLVZhemlyYW5pJTJDT3JhY2xl" data-listing-date-sort="1762128000000" data-listing-file-modified-sort="1762056346522" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1238">
+<a href="../../../posts/cs/quantum/l11 - xor-patterns-1/index.html" class="quarto-grid-link">
 <div class="quarto-grid-item card h-100 card-left">
 <p class="card-img-top">
-<img loading="lazy" src="../../../posts/cs/compiler/2-ssa/images/cover_ssa.png" class="thumbnail-image card-img" style="height: 150px;">
+<img loading="lazy" src="../../../posts/cs/quantum/l11 - xor-patterns-1/images/cover.png" class="thumbnail-image card-img" style="height: 150px;">
 </p>
 <div class="card-body post-contents">
 <h5 class="no-anchor card-title listing-title">
-컴파일러 백엔드 시리즈 2부: SSA 폼 변환과 지배자 트리
+L11. Revealing XOR-patterns I (Bernstein-Vazirani)
 </h5>
 <div class="listing-categories">
 
-<div class="listing-category" onclick="window.quartoListingCategory('Q29tcGlsZXI='); return false;">Compiler</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMENvbXB1dGluZw=='); return false;">Quantum Computing</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('UHl0aG9u'); return false;">Python</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMEFsZ29yaXRobXM='); return false;">Quantum Algorithms</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('QnJpbA=='); return false;">Bril</div>
+<div class="listing-category" onclick="window.quartoListingCategory('QmVybnN0ZWluLVZhemlyYW5p'); return false;">Bernstein-Vazirani</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('U1NB'); return false;">SSA</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('RG9taW5hdG9y'); return false;">Dominator</div>
+<div class="listing-category" onclick="window.quartoListingCategory('T3JhY2xl'); return false;">Oracle</div>
 
 </div>
 <div class="card-text listing-description delink">
-<p>CFG를 기반으로 ’지배자(Dominator)’와 ’지배 경계(Dominance Frontier)’를 계산하는 방법을 알아보고, 이를 활용해 Phi(φ) 함수를 삽입하여 코드를 SSA(Static Single Assignment) 폼으로 변환하는 핵심 과정을 분석합니다.</p>
+<p>양자 알고리즘의 핵심인 &lt;위상 반동(Phase Kickback)&gt; 트릭을 배우고, <hadamard-oracle-hadamard> 구조를 사용해 <span class="math inline">\(F(x) = s^* \cdot x\)</span> 형태의 숨겨진 XOR-pattern(s*)을 단 한 번의 호출로 찾는 Bernstein-Vazirani 알고리즘을 분석합니다.…</hadamard-oracle-hadamard></p>
 </div>
 <div class="card-attribution card-text-small justify">
 <div class="listing-author">
+Analysis by Gemini
+</div>
+<div class="listing-date">
+Nov 3, 2025
+</div>
+</div>
+</div>
+</div></a>
+</div>
+<div class="g-col-1" data-index="2" data-categories="UXVhbnR1bSUyMENvbXB1dGluZyUyQ1F1YW50dW0lMjBBbGdvcml0aG1zJTJDRm91cmllciUyMFRyYW5zZm9ybSUyQ0Jlcm5zdGVpbi1WYXppcmFuaSUyQ1NpbW9uJ3MlMjBBbGdvcml0aG0=" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346522" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="987">
+<a href="../../../posts/cs/quantum/l12 - xor-patterns-2/index.html" class="quarto-grid-link">
+<div class="quarto-grid-item card h-100 card-left">
+<p class="card-img-top">
+<img loading="lazy" src="../../../posts/cs/quantum/l12 - xor-patterns-2/images/cover.png" class="thumbnail-image card-img" style="height: 150px;">
+</p>
+<div class="card-body post-contents">
+<h5 class="no-anchor card-title listing-title">
+L12. Revealing XOR-patterns II (Boolean Fourier Transform)
+</h5>
+<div class="listing-categories">
 
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMENvbXB1dGluZw=='); return false;">Quantum Computing</div>
+
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMEFsZ29yaXRobXM='); return false;">Quantum Algorithms</div>
+
+<div class="listing-category" onclick="window.quartoListingCategory('Rm91cmllciUyMFRyYW5zZm9ybQ=='); return false;">Fourier Transform</div>
+
+<div class="listing-category" onclick="window.quartoListingCategory('QmVybnN0ZWluLVZhemlyYW5p'); return false;">Bernstein-Vazirani</div>
+
+<div class="listing-category" onclick="window.quartoListingCategory('U2ltb24ncyUyMEFsZ29yaXRobQ=='); return false;">Simon's Algorithm</div>
+
+</div>
+<div class="card-text listing-description delink">
+<p>L11의 H-V-H 알고리즘을 &lt;푸리에 샘플링&gt;이라는 일반적인 프레임워크로 확장합니다. 데이터 벡터와 양자 상태의 관계(정규화)를 정의하고, Boolean Fourier Transform (BFT)의 기저가 되는 <xor-패턴> <span class="math inline">\(\{|\chi_s\rangle\}\)</span>의 직교성을 증명합니다. BFT 계수가…</xor-패턴></p>
+</div>
+<div class="card-attribution card-text-small justify">
+<div class="listing-author">
+Analysis by Gemini
 </div>
 <div class="listing-date">
 Nov 2, 2025
@@ -301,39 +319,35 @@ Nov 2, 2025
 </div>
 </div></a>
 </div>
-<div class="g-col-1" data-index="2" data-categories="Q29tcGlsZXIlMkNQeXRob24lMkNCcmlsJTJDU1NBJTJDT3B0aW1pemF0aW9uJTJDTFZOJTJDVERDRQ==" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346521" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="7" data-listing-word-count-sort="1259">
-<a href="../../../posts/cs/compiler/3-optimization/index.html" class="quarto-grid-link">
+<div class="g-col-1" data-index="3" data-categories="UXVhbnR1bSUyMENvbXB1dGluZyUyQ1F1YW50dW0lMjBBbGdvcml0aG1zJTJDU2ltb24ncyUyMEFsZ29yaXRobSUyQ09yYWNsZSUyQ0V4cG9uZW50aWFsJTIwU3BlZWR1cA==" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346522" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="6" data-listing-word-count-sort="1131">
+<a href="../../../posts/cs/quantum/l13 - simon/index.html" class="quarto-grid-link">
 <div class="quarto-grid-item card h-100 card-left">
 <p class="card-img-top">
-<img loading="lazy" src="../../../posts/cs/compiler/3-optimization/images/cover_opt.png" class="thumbnail-image card-img" style="height: 150px;">
+<img loading="lazy" src="../../../posts/cs/quantum/l13 - simon/images/cover.png" class="thumbnail-image card-img" style="height: 150px;">
 </p>
 <div class="card-body post-contents">
 <h5 class="no-anchor card-title listing-title">
-컴파일러 백엔드 시리즈 3부: SSA를 활용한 최적화와 해제
+L13. Simon’s Algorithm
 </h5>
 <div class="listing-categories">
 
-<div class="listing-category" onclick="window.quartoListingCategory('Q29tcGlsZXI='); return false;">Compiler</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMENvbXB1dGluZw=='); return false;">Quantum Computing</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('UHl0aG9u'); return false;">Python</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMEFsZ29yaXRobXM='); return false;">Quantum Algorithms</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('QnJpbA=='); return false;">Bril</div>
+<div class="listing-category" onclick="window.quartoListingCategory('U2ltb24ncyUyMEFsZ29yaXRobQ=='); return false;">Simon's Algorithm</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('U1NB'); return false;">SSA</div>
+<div class="listing-category" onclick="window.quartoListingCategory('T3JhY2xl'); return false;">Oracle</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('T3B0aW1pemF0aW9u'); return false;">Optimization</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('TFZO'); return false;">LVN</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('VERDRQ=='); return false;">TDCE</div>
+<div class="listing-category" onclick="window.quartoListingCategory('RXhwb25lbnRpYWwlMjBTcGVlZHVw'); return false;">Exponential Speedup</div>
 
 </div>
 <div class="card-text listing-description delink">
-<p>SSA 폼의 강력함을 활용한 최적화 기법(LVN, TDCE)을 분석하고, Phi(φ) 함수를 제거하여 다시 실행 가능한 코드로 되돌리는 파이프라인의 마지막 단계를 다룹니다.</p>
+<p>고전적으로는 지수적(<span class="math inline">\(\Omega(2^{n/2})\)</span>) 시간이 걸리는 &lt;숨겨진 주기(L)&gt; 탐색 문제를, 양자 컴퓨터가 다항식(<span class="math inline">\(O(n)\)</span>) 시간에 해결하는 Simon의 알고리즘을 분석합니다. 다중 비트 출력을 처리하기 위해 <rotate-compute-rotate> 구조를 사용하며, 측정을 통해 $s…</rotate-compute-rotate></p>
 </div>
 <div class="card-attribution card-text-small justify">
 <div class="listing-author">
-
+Analysis by Gemini
 </div>
 <div class="listing-date">
 Nov 2, 2025
@@ -342,36 +356,100 @@ Nov 2, 2025
 </div>
 </div></a>
 </div>
-<div class="g-col-1" data-index="3" data-categories="Q29tcGlsZXIlMkNQeXRob24lMkNEYXRhZmxvdyUyQ0JyaWw=" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346521" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="8" data-listing-word-count-sort="1411">
-<a href="../../../posts/cs/compiler/4-toolkit/index.html" class="quarto-grid-link">
+<div class="g-col-1" data-index="4" data-categories="UXVhbnR1bSUyMENvbXB1dGluZyUyQ1F1YW50dW0lMjBBbGdvcml0aG1zJTJDUUZUJTJDU2hvcidzJTIwQWxnb3JpdGht" data-listing-date-sort="1762041600000" data-listing-file-modified-sort="1762056346522" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="5" data-listing-word-count-sort="821">
+<a href="../../../posts/cs/quantum/l14 - qft-zn/index.html" class="quarto-grid-link">
 <div class="quarto-grid-item card h-100 card-left">
 <p class="card-img-top">
-<img loading="lazy" src="../../../posts/cs/compiler/4-toolkit/images/cover_toolkit.png" class="thumbnail-image card-img" style="height: 150px;">
+<img loading="lazy" src="../../../posts/cs/quantum/l14 - qft-zn/images/cover.png" class="thumbnail-image card-img" style="height: 150px;">
 </p>
 <div class="card-body post-contents">
 <h5 class="no-anchor card-title listing-title">
-컴파일러 백엔드 시리즈 4부(부록): 컴파일러 툴킷
+L14. the Fourier Transform over Z_N
 </h5>
 <div class="listing-categories">
 
-<div class="listing-category" onclick="window.quartoListingCategory('Q29tcGlsZXI='); return false;">Compiler</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMENvbXB1dGluZw=='); return false;">Quantum Computing</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('UHl0aG9u'); return false;">Python</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UXVhbnR1bSUyMEFsZ29yaXRobXM='); return false;">Quantum Algorithms</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('RGF0YWZsb3c='); return false;">Dataflow</div>
+<div class="listing-category" onclick="window.quartoListingCategory('UUZU'); return false;">QFT</div>
 
-<div class="listing-category" onclick="window.quartoListingCategory('QnJpbA=='); return false;">Bril</div>
+<div class="listing-category" onclick="window.quartoListingCategory('U2hvcidzJTIwQWxnb3JpdGht'); return false;">Shor's Algorithm</div>
 
 </div>
 <div class="card-text listing-description delink">
-<p>SSA 파이프라인의 기반이 되는 ‘범용 데이터 흐름 분석(Dataflow Analysis)’ 프레임워크와, 최적화 성능을 측정하는 벤치마킹 유틸리티 등 프로젝트를 지원하는 핵심 툴킷을 분석합니다.</p>
+<p>Boolean Fourier Transform (<span class="math inline">\(\mathbb{Z}_2^n\)</span>)을 Arithmetic ( <span class="math inline">\(\mathbb{Z}_N\)</span>)으로 일반화하여 Discrete Fourier Transform (DFT)을 정의합니다. &lt;그룹의 문자(Character)&gt; 개념을 통해 DFT 기저 $_s(x) =…</p>
 </div>
 <div class="card-attribution card-text-small justify">
 <div class="listing-author">
-
+Analysis by Gemini
 </div>
 <div class="listing-date">
 Nov 2, 2025
+</div>
+</div>
+</div>
+</div></a>
+</div>
+<div class="g-col-1" data-index="5" data-listing-file-modified-sort="1762056346522">
+<a href="../../../posts/cs/quantum/l15 - period-finding/index.html" class="quarto-grid-link">
+<div class="quarto-grid-item card h-100 card-left">
+<div class="listing-item-img-placeholder card-img-top" style="height: 150px;">&nbsp;</div>
+<div class="card-body post-contents">
+<div class="card-text listing-description delink">
+
+</div>
+<div class="card-attribution card-text-small start">
+<div class="listing-author">
+
+</div>
+</div>
+</div>
+</div></a>
+</div>
+<div class="g-col-1" data-index="6" data-listing-file-modified-sort="1762056346522">
+<a href="../../../posts/cs/quantum/l16 - shor/index.html" class="quarto-grid-link">
+<div class="quarto-grid-item card h-100 card-left">
+<div class="listing-item-img-placeholder card-img-top" style="height: 150px;">&nbsp;</div>
+<div class="card-body post-contents">
+<div class="card-text listing-description delink">
+
+</div>
+<div class="card-attribution card-text-small start">
+<div class="listing-author">
+
+</div>
+</div>
+</div>
+</div></a>
+</div>
+<div class="g-col-1" data-index="7" data-listing-file-modified-sort="1762056346522">
+<a href="../../../posts/cs/quantum/l17 - hsp/index.html" class="quarto-grid-link">
+<div class="quarto-grid-item card h-100 card-left">
+<div class="listing-item-img-placeholder card-img-top" style="height: 150px;">&nbsp;</div>
+<div class="card-body post-contents">
+<div class="card-text listing-description delink">
+
+</div>
+<div class="card-attribution card-text-small start">
+<div class="listing-author">
+
+</div>
+</div>
+</div>
+</div></a>
+</div>
+<div class="g-col-1" data-index="8" data-listing-file-modified-sort="1762056346522">
+<a href="../../../posts/cs/quantum/l18 - grover/index.html" class="quarto-grid-link">
+<div class="quarto-grid-item card h-100 card-left">
+<div class="listing-item-img-placeholder card-img-top" style="height: 150px;">&nbsp;</div>
+<div class="card-body post-contents">
+<div class="card-text listing-description delink">
+
+</div>
+<div class="card-attribution card-text-small start">
+<div class="listing-author">
+
 </div>
 </div>
 </div>

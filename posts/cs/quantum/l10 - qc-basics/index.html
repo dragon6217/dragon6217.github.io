@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Analysis by Gemini">
+<meta name="dcterms.date" content="2025-11-02">
+<meta name="description" content="양자 회로가 고전 회로보다 강력한지(QC >= CC) 탐구합니다. 고전 연산의 비가역성(irreversibility) 문제를 <쓰레기 되돌리기(uncomputing)> 트릭으로 해결하고, 양자 병렬성을 위한 표준 연산 |x\rangle|y\rangle \mapsto |x\rangle|y \oplus F(x)\rangle를 정의합니다.">
+
+<title>L10. Basics of Quantum Computing – dragon6217.github.io</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../../">
+<script src="../../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../../site_libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../../site_libs/bootstrap/bootstrap-0b37c64f34216b628666a8dac638b53b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../../../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../../../index.html">
+    <span class="navbar-title">dragon6217.github.io</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/cs/index.html"> 
+<span class="menu-text">Computer Science</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/math/index.html"> 
+<span class="menu-text">Mathematics</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/dragon6217"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#l10.-basics-of-quantum-computing" id="toc-l10.-basics-of-quantum-computing" class="nav-link active" data-scroll-target="#l10.-basics-of-quantum-computing">L10. Basics of Quantum Computing</a>
+  <ul class="collapse">
+  <li><a href="#고전-회로-classical-circuit" id="toc-고전-회로-classical-circuit" class="nav-link" data-scroll-target="#고전-회로-classical-circuit">고전 회로 (Classical Circuit)</a></li>
+  <li><a href="#계산의-효율성-efficiency" id="toc-계산의-효율성-efficiency" class="nav-link" data-scroll-target="#계산의-효율성-efficiency">계산의 효율성 (Efficiency)</a></li>
+  <li><a href="#회로-모델과-다른-계산-모델의-비교" id="toc-회로-모델과-다른-계산-모델의-비교" class="nav-link" data-scroll-target="#회로-모델과-다른-계산-모델의-비교">회로 모델과 다른 계산 모델의 비교</a></li>
+  <li><a href="#고전-회로의-한계-대부분의-함수는-비효율적이다" id="toc-고전-회로의-한계-대부분의-함수는-비효율적이다" class="nav-link" data-scroll-target="#고전-회로의-한계-대부분의-함수는-비효율적이다">고전 회로의 한계: 대부분의 함수는 비효율적이다</a></li>
+  </ul></li>
+  <li><a href="#양자-회로-모델-quantum-circuit-model" id="toc-양자-회로-모델-quantum-circuit-model" class="nav-link" data-scroll-target="#양자-회로-모델-quantum-circuit-model">양자 회로 모델 (Quantum Circuit Model)</a></li>
+  <li><a href="#확률적-컴퓨팅-probabilistic-computing" id="toc-확률적-컴퓨팅-probabilistic-computing" class="nav-link" data-scroll-target="#확률적-컴퓨팅-probabilistic-computing">확률적 컴퓨팅 (Probabilistic Computing)</a>
+  <ul class="collapse">
+  <li><a href="#확률적-회로의-계산" id="toc-확률적-회로의-계산" class="nav-link" data-scroll-target="#확률적-회로의-계산">확률적 회로의 “계산”</a></li>
+  </ul></li>
+  <li><a href="#양자-컴퓨팅-vs-고전-컴퓨팅-qc-vs-cc" id="toc-양자-컴퓨팅-vs-고전-컴퓨팅-qc-vs-cc" class="nav-link" data-scroll-target="#양자-컴퓨팅-vs-고전-컴퓨팅-qc-vs-cc">양자 컴퓨팅 vs 고전 컴퓨팅 (QC vs CC)</a></li>
+  <li><a href="#q2.-양자-회로는-고전-회로만큼-강력한가-가역성-문제" id="toc-q2.-양자-회로는-고전-회로만큼-강력한가-가역성-문제" class="nav-link" data-scroll-target="#q2.-양자-회로는-고전-회로만큼-강력한가-가역성-문제">Q2. 양자 회로는 고전 회로만큼 강력한가? (가역성 문제)</a>
+  <ul class="collapse">
+  <li><a href="#양자-게이트-가역적-reversible" id="toc-양자-게이트-가역적-reversible" class="nav-link" data-scroll-target="#양자-게이트-가역적-reversible">1. 양자 게이트: 가역적 (Reversible)</a></li>
+  <li><a href="#고전-and-게이트-비가역적-irreversible" id="toc-고전-and-게이트-비가역적-irreversible" class="nav-link" data-scroll-target="#고전-and-게이트-비가역적-irreversible">2. 고전 AND 게이트: 비가역적 (Irreversible)</a></li>
+  <li><a href="#물리적-고찰-landauer의-원리-정보-삭제와-에너지" id="toc-물리적-고찰-landauer의-원리-정보-삭제와-에너지" class="nav-link" data-scroll-target="#물리적-고찰-landauer의-원리-정보-삭제와-에너지">3. 물리적 고찰: Landauer의 원리 (정보 삭제와 에너지)</a></li>
+  <li><a href="#해법-고전-가역-컴퓨팅-classical-reversible-computing" id="toc-해법-고전-가역-컴퓨팅-classical-reversible-computing" class="nav-link" data-scroll-target="#해법-고전-가역-컴퓨팅-classical-reversible-computing">4. 해법: 고전 가역 컴퓨팅 (Classical Reversible Computing)</a></li>
+  </ul></li>
+  <li><a href="#고전-연산의-가역적-구현-예시" id="toc-고전-연산의-가역적-구현-예시" class="nav-link" data-scroll-target="#고전-연산의-가역적-구현-예시">고전 연산의 가역적 구현 (예시)</a>
+  <ul class="collapse">
+  <li><a href="#fanout-복제-cnot" id="toc-fanout-복제-cnot" class="nav-link" data-scroll-target="#fanout-복제-cnot">1. FANOUT (복제 / CNOT)</a></li>
+  <li><a href="#and-논리곱-toffoli" id="toc-and-논리곱-toffoli" class="nav-link" data-scroll-target="#and-논리곱-toffoli">2. AND (논리곱 / Toffoli)</a></li>
+  <li><a href="#or-논리합-de-morgans-law" id="toc-or-논리합-de-morgans-law" class="nav-link" data-scroll-target="#or-논리합-de-morgans-law">3. OR (논리합 / De Morgan’s Law)</a></li>
+  </ul></li>
+  <li><a href="#핵심-결론-고전-회로의-효율적인-양자-시뮬레이션" id="toc-핵심-결론-고전-회로의-효율적인-양자-시뮬레이션" class="nav-link" data-scroll-target="#핵심-결론-고전-회로의-효율적인-양자-시뮬레이션">핵심 결론: 고전 회로의 효율적인 양자 시뮬레이션</a></li>
+  <li><a href="#가역-회로의-함정-쓰레기garbage-비트" id="toc-가역-회로의-함정-쓰레기garbage-비트" class="nav-link" data-scroll-target="#가역-회로의-함정-쓰레기garbage-비트">가역 회로의 함정: “쓰레기(Garbage)” 비트</a></li>
+  <li><a href="#양자-알고리즘의-진짜-문제-쓰레기는-간섭interference을-막는다" id="toc-양자-알고리즘의-진짜-문제-쓰레기는-간섭interference을-막는다" class="nav-link" data-scroll-target="#양자-알고리즘의-진짜-문제-쓰레기는-간섭interference을-막는다">양자 알고리즘의 진짜 문제: 쓰레기는 간섭(Interference)을 막는다</a></li>
+  <li><a href="#쓰레기-되돌리기-uncomputing-garbage" id="toc-쓰레기-되돌리기-uncomputing-garbage" class="nav-link" data-scroll-target="#쓰레기-되돌리기-uncomputing-garbage">쓰레기 되돌리기 (Uncomputing Garbage)</a>
+  <ul class="collapse">
+  <li><a href="#이상적인-연산-형태" id="toc-이상적인-연산-형태" class="nav-link" data-scroll-target="#이상적인-연산-형태">1. 이상적인 연산 형태</a></li>
+  <li><a href="#bennett의-uncomputing-트릭" id="toc-bennett의-uncomputing-트릭" class="nav-link" data-scroll-target="#bennett의-uncomputing-트릭">2. Bennett의 “Uncomputing” 트릭</a></li>
+  </ul></li>
+  <li><a href="#l10.-결론-양자-회로의-고전-함수-계산법" id="toc-l10.-결론-양자-회로의-고전-함수-계산법" class="nav-link" data-scroll-target="#l10.-결론-양자-회로의-고전-함수-계산법">L10. 결론: 양자 회로의 고전 함수 계산법</a>
+  <ul class="collapse">
+  <li><a href="#표준-정의-쓰레기-없는-xor-연산" id="toc-표준-정의-쓰레기-없는-xor-연산" class="nav-link" data-scroll-target="#표준-정의-쓰레기-없는-xor-연산">1. 표준 정의: “쓰레기 없는” XOR 연산</a></li>
+  <li><a href="#양자-병렬성-quantum-parallelism" id="toc-양자-병렬성-quantum-parallelism" class="nav-link" data-scroll-target="#양자-병렬성-quantum-parallelism">2. 양자 병렬성 (Quantum Parallelism)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">L10. Basics of Quantum Computing</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Quantum Computing</div>
+    <div class="quarto-category">Quantum Basics</div>
+    <div class="quarto-category">Reversible Computing</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    양자 회로가 고전 회로보다 강력한지(QC &gt;= CC) 탐구합니다. 고전 연산의 비가역성(irreversibility) 문제를 &lt;쓰레기 되돌리기(uncomputing)&gt; 트릭으로 해결하고, 양자 병렬성을 위한 표준 연산 <span class="math inline">\(|x\rangle|y\rangle \mapsto |x\rangle|y \oplus F(x)\rangle\)</span>를 정의합니다.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Analysis by Gemini </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 2, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="l10.-basics-of-quantum-computing" class="level2">
+<h2 class="anchored" data-anchor-id="l10.-basics-of-quantum-computing">L10. Basics of Quantum Computing</h2>
+<p>양자 컴퓨팅(Quantum Computing)을 다루기 전에, 고전 컴퓨팅(Classical Computing)의 <strong>회로 모델(Circuit Model)</strong>을 간단히 복습하며 시작하겠습니다.</p>
+<section id="고전-회로-classical-circuit" class="level3">
+<h3 class="anchored" data-anchor-id="고전-회로-classical-circuit">고전 회로 (Classical Circuit)</h3>
+<p>고전 회로 <span class="math inline">\(C\)</span>는 특정 함수 <span class="math inline">\(F: \{0,1\}^n \to \{0,1\}^m\)</span>를 계산합니다.</p>
+<ul>
+<li><strong>입력 (Input):</strong> <span class="math inline">\(n\)</span>개의 비트 <span class="math inline">\(x_1, \dots, x_n\)</span></li>
+<li><strong>게이트 (Gates):</strong> AND, OR, NOT (혹은 NAND, NOT과 같은 universal gate set)</li>
+<li><strong>출력 (Output):</strong> <span class="math inline">\(m\)</span>개의 비트 <span class="math inline">\(y_1, \dots, y_m\)</span></li>
+</ul>
+<hr>
+</section>
+<section id="계산의-효율성-efficiency" class="level3">
+<h3 class="anchored" data-anchor-id="계산의-효율성-efficiency">계산의 효율성 (Efficiency)</h3>
+<p>우리는 주로 효율성, 즉 게이트의 수가 입력 크기 <span class="math inline">\(n\)</span>에 따라 어떻게 확장(scale)되는지에 초점을 맞춥니다. 효율성을 측정하는 간단한 척도는 <strong>게이트의 수(# of gates)</strong>입니다.</p>
+</section>
+<section id="회로-모델과-다른-계산-모델의-비교" class="level3">
+<h3 class="anchored" data-anchor-id="회로-모델과-다른-계산-모델의-비교">회로 모델과 다른 계산 모델의 비교</h3>
+<p>“왜 하필 (파이썬 코드나 튜링 머신이 아닌) 회로 모델에 집중하는가?”</p>
+<p>결론부터 말하면, <strong>회로의 게이트 수(# of gates)는 다른 모델(예: 튜링 머신, Python 코드)의 실행 시간(running time)과 다항식(polynomially) 관계로 비교 가능</strong>하기 때문입니다.</p>
+<p><strong>핵심 정리 (Fact/Theorem):</strong> &gt; 만약 Python 코드 (혹은 튜링 머신 등)로 작성된 알고리즘이 함수 <span class="math inline">\(F\)</span>를 <span class="math inline">\(T\)</span> 스텝 안에 계산한다면, &gt; 이 함수 <span class="math inline">\(F\)</span>를 계산하는 고전 회로를 <strong>최대 <span class="math inline">\(O(T \log T)\)</span>개의 게이트</strong>를 사용하여 만들 수 있습니다.</p>
+<p>실질적으로 다음과 같은 근사가 가능합니다: <strong>게이트의 수 <span class="math inline">\(\approx\)</span> 알고리즘의 실행 시간 <span class="math inline">\(T\)</span></strong></p>
+<hr>
+</section>
+<section id="고전-회로의-한계-대부분의-함수는-비효율적이다" class="level3">
+<h3 class="anchored" data-anchor-id="고전-회로의-한계-대부분의-함수는-비효율적이다">고전 회로의 한계: 대부분의 함수는 비효율적이다</h3>
+<p>Shannon의 정리에 따르면, 거의 모든(Almost all) 불리언 함수(Boolean Function) <span class="math inline">\(F: \{0,1\}^n \to \{0,1\}\)</span>는 <strong>최소 <span class="math inline">\(\Omega(2^n / n)\)</span>개의 게이트</strong>를 필요로 합니다.</p>
+<p><span class="math inline">\(n=500\)</span>만 되어도 <span class="math inline">\(2^{500}\)</span>은 실행 불가능한(infeasible) 숫자입니다. 다행히도, 우리는 “모든” 함수가 아닌 <strong>“흥미로운” 특정 함수</strong>들(예: 소수 판별, 최단 경로 탐색 등)에만 관심이 있으며, 이러한 함수들은 다행히도 <strong>다항식(polynomial) 수의 게이트</strong>(<span class="math inline">\(O(n^k)\)</span>)로 해결할 수 있습니다.</p>
+<hr>
+</section>
+</section>
+<section id="양자-회로-모델-quantum-circuit-model" class="level2">
+<h2 class="anchored" data-anchor-id="양자-회로-모델-quantum-circuit-model">양자 회로 모델 (Quantum Circuit Model)</h2>
+<ol type="1">
+<li><strong>입력 (Input):</strong> <span class="math inline">\(n\)</span>개의 큐비트. (예: <span class="math inline">\(|0\rangle^{\otimes n}\)</span>)</li>
+<li><strong>연산 (Operation):</strong> 1-큐비트 게이트(H, Rotation)와 2-큐비트 게이트(CNOT) 등의 연속적인 적용. (이 조합은 <span class="math inline">\(2^n \times 2^n\)</span> Unitary 행렬 <span class="math inline">\(U\)</span>로 표현됩니다.)</li>
+<li><strong>출력 (Output):</strong> <span class="math inline">\(m\)</span>개의 고전적인 비트를 얻기 위한 <strong>측정(Measurement)</strong>.</li>
+</ol>
+<section id="핵심-원칙-지연된-측정의-원리-principle-of-deferred-measurement" class="level4">
+<h4 class="anchored" data-anchor-id="핵심-원칙-지연된-측정의-원리-principle-of-deferred-measurement">💡 핵심 원칙: 지연된 측정의 원리 (Principle of Deferred Measurement)</h4>
+<p>양자 회로를 분석할 때 매우 유용한 원칙입니다.</p>
+<blockquote class="blockquote">
+<p>회로 중간에 측정이 포함되어 있더라도, 보조 큐비트(ancilla qubit) 등을 사용하여 <strong>모든 측정을 회로의 맨 마지막 단계로 미루는(defer)</strong> 것과 동일한(behave identically) 회로를 구성할 수 있습니다.</p>
+</blockquote>
+<p>따라서, <strong>일반성을 잃지 않고 (WLOG)</strong>, 모든 양자 회로는 “초기 상태 준비 <span class="math inline">\(\to\)</span> 단일 Unitary 연산 <span class="math inline">\(U\)</span> <span class="math inline">\(\to\)</span> 최종 측정”의 단순한 형태로 가정하고 분석할 수 있습니다.</p>
+<hr>
+</section>
+</section>
+<section id="확률적-컴퓨팅-probabilistic-computing" class="level2">
+<h2 class="anchored" data-anchor-id="확률적-컴퓨팅-probabilistic-computing">확률적 컴퓨팅 (Probabilistic Computing)</h2>
+<p>고전 회로에 <strong>무작위 동전 던지기(FLIP) 게이트</strong>를 추가한 모델입니다.</p>
+<section id="확률적-회로의-계산" class="level3">
+<h3 class="anchored" data-anchor-id="확률적-회로의-계산">확률적 회로의 “계산”</h3>
+<p>확률적 회로 <span class="math inline">\(C\)</span>가 함수 <span class="math inline">\(F\)</span>를 계산한다는 것은, 모든 입력 <span class="math inline">\(x\)</span>에 대해 오답을 낼 확률이 <span class="math inline">\(\epsilon \le 1/3\)</span>처럼 작다는 것을 의미합니다. <span class="math display">\[\text{Pr}[C(x) \neq F(x)] \le \epsilon\]</span> (오류 확률이 크더라도 여러 번 반복(repeat)하면 오류를 지수적으로 줄일 수 있습니다.)</p>
+<p><strong>중요한 사실 (BPP = P 추측):</strong> &gt; 확률적 컴퓨터(BPP)는 결정론적 컴퓨터(P)보다 <strong>지수적으로(exponentially) 빠르지는 않다</strong>고 여겨집니다.</p>
+<hr>
+</section>
+</section>
+<section id="양자-컴퓨팅-vs-고전-컴퓨팅-qc-vs-cc" class="level2">
+<h2 class="anchored" data-anchor-id="양자-컴퓨팅-vs-고전-컴퓨팅-qc-vs-cc">양자 컴퓨팅 vs 고전 컴퓨팅 (QC vs CC)</h2>
+<p><strong>Q1. 양자 회로(QC)가 고전 회로(CC)보다 더 효율적으로 계산할 수 있는 함수 <span class="math inline">\(F\)</span>가 존재하는가?</strong> * <strong>A: 그렇다고 생각합니다 (Yes, think so).</strong> (예: 인수분해 - Shor의 알고리즘)</p>
+<p><strong>Q2. (반대로) 양자 회로는 <em>최소한</em> 고전 회로만큼 강력한가? (QC <span class="math inline">\(\ge\)</span> CC ?)</strong> * <strong>A: 예. 하지만 이를 보이려면 “가역성” 문제를 해결해야 합니다.</strong> * 고전적인 AND 게이트를 양자 회로로 어떻게 구현할 수 있을까요?</p>
+<p><strong>Q3. 게이트의 종류가 중요한가?</strong> * <strong>A: 근본적으로 중요하지 않습니다.</strong> {모든 1-큐비트 게이트 + CNOT 게이트} 조합이면 모든 Unitary 연산을 근사할 수 있습니다 (Universal gate set).</p>
+<hr>
+</section>
+<section id="q2.-양자-회로는-고전-회로만큼-강력한가-가역성-문제" class="level2">
+<h2 class="anchored" data-anchor-id="q2.-양자-회로는-고전-회로만큼-강력한가-가역성-문제">Q2. 양자 회로는 고전 회로만큼 강력한가? (가역성 문제)</h2>
+<section id="양자-게이트-가역적-reversible" class="level3">
+<h3 class="anchored" data-anchor-id="양자-게이트-가역적-reversible">1. 양자 게이트: 가역적 (Reversible)</h3>
+<p>모든 양자 게이트 <span class="math inline">\(U\)</span>는 Unitary (<span class="math inline">\(UU^\dagger = I\)</span>)이며, 항상 역행렬(<span class="math inline">\(U^\dagger\)</span>)을 가집니다. 이는 출력을 알면 입력을 알 수 있음을 의미합니다.</p>
+</section>
+<section id="고전-and-게이트-비가역적-irreversible" class="level3">
+<h3 class="anchored" data-anchor-id="고전-and-게이트-비가역적-irreversible">2. 고전 AND 게이트: 비가역적 (Irreversible)</h3>
+<p>입력 (00, 01, 10)은 모두 동일한 출력 0을 만듭니다. 출력 0에서 입력을 복원할 수 없으며, 이 과정에서 <strong>정보가 삭제(erase info)</strong>됩니다.</p>
+</section>
+<section id="물리적-고찰-landauer의-원리-정보-삭제와-에너지" class="level3">
+<h3 class="anchored" data-anchor-id="물리적-고찰-landauer의-원리-정보-삭제와-에너지">3. 물리적 고찰: Landauer의 원리 (정보 삭제와 에너지)</h3>
+<p><strong>Landauer의 원리</strong>에 따르면, 계산 단계 자체가 아니라 <strong>“정보를 삭제(erasing info)”</strong>하는 비가역적 과정이 근본적으로 <strong>에너지(열)를 방출</strong>해야 합니다.</p>
+<ul>
+<li><strong>가역적 연산 (예: NOT):</strong> 이론적으로 에너지 손실 없이 수행 가능합니다.</li>
+<li><strong>비가역적 연산 (예: AND):</strong> 정보를 잃고 엔트로피가 증가하므로, 반드시 열을 방출해야 합니다.</li>
+</ul>
+</section>
+<section id="해법-고전-가역-컴퓨팅-classical-reversible-computing" class="level3">
+<h3 class="anchored" data-anchor-id="해법-고전-가역-컴퓨팅-classical-reversible-computing">4. 해법: 고전 가역 컴퓨팅 (Classical Reversible Computing)</h3>
+<p>Charles Bennett 등은 <strong>“보조 비트(Ancilla bits)”</strong>를 사용하여 모든 고전적 연산을 가역적으로 수행할 수 있음을 보였습니다.</p>
+<hr>
+</section>
+</section>
+<section id="고전-연산의-가역적-구현-예시" class="level2">
+<h2 class="anchored" data-anchor-id="고전-연산의-가역적-구현-예시">고전 연산의 가역적 구현 (예시)</h2>
+<p>핵심 아이디어는 <span class="math inline">\(y=F(x)\)</span>를 계산하는 대신, <span class="math inline">\(U_F: |x\rangle |0\rangle \mapsto |x\rangle |F(x)\rangle\)</span> 처럼 입력 <span class="math inline">\(|x\rangle\)</span>를 보존하면서 답을 “복사”하는 것입니다.</p>
+<section id="fanout-복제-cnot" class="level3">
+<h3 class="anchored" data-anchor-id="fanout-복제-cnot">1. FANOUT (복제 / CNOT)</h3>
+<p>고전 비트 <span class="math inline">\(x\)</span>를 <span class="math inline">\(x, x\)</span>로 복제하는 연산은 <strong>CNOT 게이트</strong>로 완벽하게 구현됩니다.</p>
+<ul>
+<li><strong>연산:</strong> <span class="math inline">\(U_{\text{CNOT}}: |x\rangle |a\rangle \mapsto |x\rangle |a \oplus x\rangle\)</span></li>
+<li><strong>구현:</strong> 보조 큐비트를 <span class="math inline">\(|0\rangle\)</span>으로 초기화하면 (<span class="math inline">\(a=0\)</span>),
+<ul>
+<li><span class="math inline">\(U_{\text{CNOT}}: |x\rangle |0\rangle \mapsto |x\rangle |x\rangle\)</span></li>
+</ul></li>
+</ul>
+<blockquote class="blockquote">
+<p><strong><code>quantee</code> 코드 스니펫 (CNOT Gate):</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="at">:</span><span class="fu">:</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at">quantee</span><span class="kw">}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">qcircuit</span><span class="kw">:</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">qubits</span><span class="kw">:</span><span class="at"> </span><span class="dv">2</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">circuit</span><span class="kw">:</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">CNOT</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">0</span><span class="kw">,</span><span class="at"> </span><span class="dv">1</span><span class="kw">]</span><span class="co"> # 0번(제어), 1번(타겟)</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">:</span><span class="fu">:</span><span class="kw">:</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</blockquote>
+</section>
+<section id="and-논리곱-toffoli" class="level3">
+<h3 class="anchored" data-anchor-id="and-논리곱-toffoli">2. AND (논리곱 / Toffoli)</h3>
+<p><strong>Toffoli (CCNOT) 게이트</strong>를 사용합니다.</p>
+<ul>
+<li><strong>연산:</strong> <span class="math inline">\(U_{\text{Toffoli}}: |x_1\rangle |x_2\rangle |a\rangle \mapsto |x_1\rangle |x_2\rangle |a \oplus (x_1 \land x_2)\rangle\)</span></li>
+<li><strong>구현:</strong> 보조 큐비트를 <span class="math inline">\(|0\rangle\)</span>으로 초기화하면 (<span class="math inline">\(a=0\)</span>),
+<ul>
+<li><span class="math inline">\(U_{\text{Toffoli}}: |x_1\rangle |x_2\rangle |0\rangle \mapsto |x_1\rangle |x_2\rangle |x_1 \land x_2\rangle\)</span></li>
+</ul></li>
+</ul>
+<blockquote class="blockquote">
+<p><strong><code>quantee</code> 코드 스니펫 (Toffoli Gate):</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">:</span><span class="fu">:</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at">quantee</span><span class="kw">}</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">qcircuit</span><span class="kw">:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">qubits</span><span class="kw">:</span><span class="at"> </span><span class="dv">3</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">circuit</span><span class="kw">:</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">control</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">0</span><span class="kw">,</span><span class="at"> </span><span class="dv">1</span><span class="kw">]</span><span class="co">  # 0번, 1번 큐비트가 제어</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">target</span><span class="kw">:</span><span class="at"> </span><span class="dv">2</span><span class="co">        # 2번 큐비트가 타겟</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">gate</span><span class="kw">:</span><span class="at"> X</span><span class="co">          # (CC-X, 즉 Toffoli)</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">:</span><span class="fu">:</span><span class="kw">:</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</blockquote>
+</section>
+<section id="or-논리합-de-morgans-law" class="level3">
+<h3 class="anchored" data-anchor-id="or-논리합-de-morgans-law">3. OR (논리합 / De Morgan’s Law)</h3>
+<p><code>OR</code> 게이트는 <code>AND</code>와 <code>NOT</code> 게이트를 조합하여 만들 수 있습니다. (드모르간의 법칙: <span class="math inline">\(x_1 \lor x_2 = \neg (\neg x_1 \land \neg x_2)\)</span>) 이 또한 가역 게이트(X, Toffoli)의 조합으로 구현 가능합니다.</p>
+<hr>
+</section>
+</section>
+<section id="핵심-결론-고전-회로의-효율적인-양자-시뮬레이션" class="level2">
+<h2 class="anchored" data-anchor-id="핵심-결론-고전-회로의-효율적인-양자-시뮬레이션">핵심 결론: 고전 회로의 효율적인 양자 시뮬레이션</h2>
+<p><strong>정리 (Bennett, 1973):</strong> &gt; <span class="math inline">\(G\)</span>개의 게이트를 가진 임의의 고전 회로 <span class="math inline">\(C\)</span>는, &gt; <span class="math inline">\(O(G)\)</span>개의 가역 게이트를 사용하는 <strong>가역 회로 <span class="math inline">\(R.C.\)</span></strong> (따라서 양자 회로 <span class="math inline">\(U_C\)</span>)로 <strong>매우 효율적으로(very efficiently)</strong> 변환될 수 있다.</p>
+<p><strong>최종 결론:</strong> 이 변환은 효율적이므로(inefficient 하지 않다), <strong>양자 컴퓨터(QC)는 모든 고전 컴퓨터(CC)의 연산을 효율적으로 시뮬레이션할 수 있습니다.</strong></p>
+<p><span class="math display">\[\text{QC} \ge \text{CC}\]</span></p>
+<hr>
+</section>
+<section id="가역-회로의-함정-쓰레기garbage-비트" class="level2">
+<h2 class="anchored" data-anchor-id="가역-회로의-함정-쓰레기garbage-비트">가역 회로의 함정: “쓰레기(Garbage)” 비트</h2>
+<p>하지만 이 변환에는 치명적인 문제가 있습니다. <span class="math display">\[U_C: |x\rangle_n |0\rangle_a \mapsto |x\rangle_n |F(x)\rangle_m |G(x)\rangle_{\text{garbage}}\]</span> 이 연산은 원하는 답 <span class="math inline">\(|F(x)\rangle\)</span> 외에, 연산 과정에서 발생한 부가 정보인 <strong>“쓰레기(garbage)” 비트 <span class="math inline">\(|G(x)\rangle\)</span></strong>를 생성합니다.</p>
+</section>
+<section id="양자-알고리즘의-진짜-문제-쓰레기는-간섭interference을-막는다" class="level2">
+<h2 class="anchored" data-anchor-id="양자-알고리즘의-진짜-문제-쓰레기는-간섭interference을-막는다">양자 알고리즘의 진짜 문제: 쓰레기는 간섭(Interference)을 막는다</h2>
+<p>양자 알고리즘의 핵심은 중첩과 간섭입니다. 하지만 쓰레기 비트는 이를 불가능하게 만듭니다.</p>
+<p>중첩 상태 <span class="math inline">\(\frac{1}{\sqrt{2}}(|0\rangle + |1\rangle)\)</span>를 입력하면, 출력은 다음과 같은 <strong>얽힌(entangled) 상태</strong>가 됩니다:</p>
+<p><span class="math display">\[\frac{1}{\sqrt{2}} \left( |0\rangle |F(0)\rangle |G(0)\rangle + |1\rangle |F(1)\rangle |G(1)\rangle \right)\]</span></p>
+<ul>
+<li>만약 <span class="math inline">\(G(0) \neq G(1)\)</span>이라면, <span class="math inline">\(|G(0)\rangle\)</span>과 <span class="math inline">\(|G(1)\rangle\)</span>은 서로 직교(orthogonal)합니다.</li>
+<li>이로 인해, 우리가 원하는 결과 큐비트 <span class="math inline">\(|F(0)\rangle\)</span>과 <span class="math inline">\(|F(1)\rangle\)</span>은 더 이상 서로 <strong>간섭할 수 없습니다.</strong></li>
+<li>쓰레기 비트를 무시(trace out)하면, 결과 레지스터는 원하는 순수 중첩 상태(<span class="math inline">\(\frac{1}{\sqrt{2}}(|F(0)\rangle + |F(1)\rangle)\)</span>)가 아닌, 확률적인 <strong>혼합 상태(mixed state)</strong>가 되어버립니다.</li>
+<li><strong>결론:</strong> 쓰레기 비트는 양자 알고리즘의 핵심인 간섭 현상을 “망쳐버립니다(ruins things)”.</li>
+</ul>
+<hr>
+</section>
+<section id="쓰레기-되돌리기-uncomputing-garbage" class="level2">
+<h2 class="anchored" data-anchor-id="쓰레기-되돌리기-uncomputing-garbage">쓰레기 되돌리기 (Uncomputing Garbage)</h2>
+<p>이 문제를 해결하기 위해 <strong>Bennett의 “Uncomputing” 트릭</strong>을 사용합니다.</p>
+<section id="이상적인-연산-형태" class="level3">
+<h3 class="anchored" data-anchor-id="이상적인-연산-형태">1. 이상적인 연산 형태</h3>
+<p>우리가 진정으로 원하는 “쓰레기 없는” 연산은 다음과 같습니다: <span class="math display">\[U_F: |x\rangle_n |y\rangle_m \mapsto |x\rangle_n |y \oplus F(x)\rangle_m\]</span></p>
+</section>
+<section id="bennett의-uncomputing-트릭" class="level3">
+<h3 class="anchored" data-anchor-id="bennett의-uncomputing-트릭">2. Bennett의 “Uncomputing” 트릭</h3>
+<p>이 이상적인 연산은 다음 3단계로 구현할 수 있습니다.</p>
+<ol type="1">
+<li><strong>[Step 1] 계산 (Compute):</strong> <span class="math inline">\(F(x)\)</span>와 쓰레기 <span class="math inline">\(G(x)\)</span>를 생성합니다.
+<ul>
+<li><span class="math inline">\(|x\rangle |0\rangle_{\text{anc}} |0\rangle_{\text{out}} \xrightarrow{R_F} |x\rangle |G(x)\rangle_{\text{anc}} |F(x)\rangle_{\text{out}}\)</span></li>
+</ul></li>
+<li><strong>[Step 2] 답 복사 (Copy Answer):</strong> CNOT을 사용해 <span class="math inline">\(F(x)\)</span>를 새로운 “최종 답” 레지스터로 복사합니다.
+<ul>
+<li><span class="math inline">\(|x\rangle |G(x)\rangle |F(x)\rangle |0\rangle_{\text{final}} \xrightarrow{\text{CNOTs}} |x\rangle |G(x)\rangle |F(x)\rangle |F(x)\rangle_{\text{final}}\)</span></li>
+</ul></li>
+<li><strong>[Step 3] 되돌리기 (Uncompute):</strong> Step 1의 역연산(<span class="math inline">\(R_F^\dagger\)</span>)을 적용하여 쓰레기 <span class="math inline">\(G(x)\)</span>와 중간 계산값 <span class="math inline">\(F(x)\)</span>를 “삭제”하고 보조 큐비트를 <span class="math inline">\(|0\rangle\)</span>으로 되돌립니다.
+<ul>
+<li><span class="math inline">\(|x\rangle |G(x)\rangle |F(x)\rangle |F(x)\rangle_{\text{final}} \xrightarrow{R_F^\dagger} |x\rangle |0\rangle_{\text{anc}} |0\rangle_{\text{out}} |F(x)\rangle_{\text{final}}\)</span></li>
+</ul></li>
+</ol>
+<p><strong>최종 결과:</strong> <span class="math display">\[|x\rangle |0 \dots 0\rangle \mapsto |x\rangle |0 \dots 0\rangle |F(x)\rangle_{\text{final}}\]</span></p>
+<ul>
+<li>우리는 <strong>입력 <span class="math inline">\(|x\rangle\)</span>와 깨끗한 답 <span class="math inline">\(|F(x)\rangle\)</span>만</strong>을 얻었고, 연산에 사용된 모든 “작업 공간(scratch space)”은 모두 <span class="math inline">\(|0\rangle\)</span>으로 깔끔하게 초기화되었습니다.</li>
+<li><strong>효율성:</strong> 이 트릭은 게이트 수를 약 2배(<span class="math inline">\(\times 2\)</span>)로 늘리지만, 여전히 <strong>효율적(efficient)</strong>입니다.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="l10.-결론-양자-회로의-고전-함수-계산법" class="level2">
+<h2 class="anchored" data-anchor-id="l10.-결론-양자-회로의-고전-함수-계산법">L10. 결론: 양자 회로의 고전 함수 계산법</h2>
+<section id="표준-정의-쓰레기-없는-xor-연산" class="level3">
+<h3 class="anchored" data-anchor-id="표준-정의-쓰레기-없는-xor-연산">1. 표준 정의: “쓰레기 없는” XOR 연산</h3>
+<p>“쓰레기” 문제를 해결했으므로, “양자 회로가 고전 함수 <span class="math inline">\(F\)</span>를 계산한다”는 것을 다음과 같이 <strong>표준적으로 정의</strong>합니다.</p>
+<blockquote class="blockquote">
+<p><strong>[정의]</strong> 양자 회로 <span class="math inline">\(U_F\)</span>는 다음 변환을 수행한다: <span class="math display">\[U_F: |x\rangle_n |y\rangle_m \mapsto |x\rangle_n |y \oplus F(x)\rangle_m\]</span></p>
+</blockquote>
+</section>
+<section id="양자-병렬성-quantum-parallelism" class="level3">
+<h3 class="anchored" data-anchor-id="양자-병렬성-quantum-parallelism">2. 양자 병렬성 (Quantum Parallelism)</h3>
+<p>이 표준 정의가 강력한 <strong>진짜</strong> 이유는 <span class="math inline">\(|x\rangle\)</span>가 중첩 상태일 때 발생합니다.</p>
+<ul>
+<li><p><span class="math inline">\(n\)</span>-큐비트 입력이 모든 가능한 입력의 <strong>균등 중첩(uniform superposition)</strong> 상태라고 가정해봅시다: <span class="math display">\[|\psi_{\text{in}}\rangle = \left( \frac{1}{\sqrt{2^n}} \sum_{x \in \{0,1\}^n} |x\rangle \right) |0\rangle_m\]</span></p></li>
+<li><p>여기에 <span class="math inline">\(U_F\)</span> 연산을 (단 한 번) 적용하면, <span class="math inline">\(F(x)\)</span>가 <strong>모든 <span class="math inline">\(x\)</span>에 대해 동시에 계산</strong>됩니다: <span class="math display">\[|\psi_{\text{out}}\rangle = U_F |\psi_{\text{in}}\rangle = \frac{1}{\sqrt{2^n}} \sum_{x \in \{0,1\}^n} |x\rangle |F(x)\rangle\]</span></p></li>
+</ul>
+<p>이것이 바로 <strong>양자 병렬성(Quantum Parallelism)</strong>입니다. <span class="math inline">\(U_F\)</span>를 단 한 번만 실행함으로써, 우리는 <span class="math inline">\(2^n\)</span>개의 모든 <span class="math inline">\(F(x)\)</span> 값을 포함하는 얽힌 중첩 상태를 얻었습니다.</p>
+<blockquote class="blockquote">
+<p><strong>[L10의 핵심]</strong> 우리는 고전 함수 <span class="math inline">\(F(x)\)</span>를 “쓰레기 없이” 중첩 상태에 적용하여 <span class="math inline">\(|x\rangle |F(x)\rangle\)</span>의 거대한 얽힘 상태를 만드는 방법을 배웠습니다.</p>
+<p><strong>다음 강의(L11~)부터의 과제:</strong> 어떻게 이 중첩 상태에서 유용한 정보(예: <span class="math inline">\(F(x)\)</span>의 주기(period), 특정 패턴)를 <em>측정 없이</em> “추출(extract)”할 것인가? (이것이 바로 양자 푸리에 변환(QFT)과 같은 알고리즘이 하는 일입니다.)</p>
+</blockquote>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/dragon6217\.github\.io\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
