@@ -1,0 +1,210 @@
+---
+title: "컴파일러 백엔드 시리즈 4부(부록): 컴파일러 툴킷"
+description: "SSA 파이프라인의 기반이 되는 '범용 데이터 흐름 분석(Dataflow Analysis)' 프레임워크와, 최적화 성능을 측정하는 벤치마킹 유틸리티 등 프로젝트를 지원하는 핵심 툴킷을 분석합니다."
+date: "2025-11-02"
+categories: [Compiler, Python, Dataflow, Bril]
+image: "images/cover_toolkit.png"
+---
+
+1부에서 3부까지 우리는 CFG 생성, SSA 변환, 최적화, 그리고 SSA 해제로 이어지는 컴파일러 백엔드의 핵심 파이프라인을 구축했습니다.
+
+이번 4부(부록)에서는 이 파이프라인을 직접 구성하지는 않지만, 그 기반이 되는 핵심 이론 프레임워크와 프로젝트를 보조하는 유용한 툴킷 파일들을 살펴봅니다.
+
+## 10. 심화 학습: 일반적인 데이터 흐름 분석(Dataflow Analysis) 프레임워크
+
+2부의 `dom.py`에서 지배자(Dominator)를 계산하기 위해 '반복적 데이터 흐름 분석' 알고리즘을 사용했던 것을 기억하시나요? `dom.py`가 '지배자 분석'이라는 **특정한(specific)** 목적을 위해 하드코딩된 구현체였다면, `df.py`는 한발 더 나아가 **어떤 종류의 데이터 흐름 분석이든** 수행할 수 있도록 일반화시킨 강력한 **프레임워크**입니다.
+
+> **데이터 흐름 분석이란?**
+> CFG를 따라 프로그램의 상태 값(예: "이 변수가 상수인가?", "이 변수가 나중에 사용되는가?")이 어떻게 전파되는지 계산하는 정적 분석 기법입니다. 이 분석은 "고정점(fixed-point)"에 도달할 때까지, 즉 더 이상 정보가 갱신되지 않을 때까지 반복적으로 수행됩니다.
+
+`df.py`는 특정 분석에 종속되지 않고, `Analysis`라는 명세만 넘겨주면 알아서 고정점을 찾아주는 **범용 워크리스트 알고리즘(Worklist Algorithm)**을 제공합니다.
+
+### 1. 'Analysis' 추상화
+
+이 프레임워크의 핵심은 `Analysis` 네임드튜플(namedtuple)입니다. 어떤 데이터 흐름 분석이든 다음 네 가지 요소로 정의할 수 있다는 아이디어에 기반합니다.
+
+```python
+Analysis = namedtuple('Analysis', ['forward', 'init', 'merge', 'transfer'])
+```
+
+* **`forward` (방향):** `True`이면 순방향(Forward) 분석 (진입 $\rightarrow$ 종료), `False`이면 역방향(Backward) 분석 (종료 $\rightarrow$ 진입)을 수행합니다.
+* **`init` (초기값):** 각 블록의 `in` 또는 `out` 상태가 처음 시작할 때 가지는 값입니다. (Lattice의 $\top$ 또는 $\bot$ 원소)
+* **`merge` (병합 함수):** 여러 경로가 합쳐지는 지점(예: if문 다음 블록)에서 각 경로의 상태 값을 어떻게 합칠 것인지 정의합니다. (Meet 연산자 $\cap$ 또는 $\cup$)
+* **`transfer` (전달 함수):** 특정 블록을 통과할 때, 블록의 `in` 상태가 어떻게 `out` 상태로 변환되는지 정의합니다. ( $f(x)$ )
+
+### 2. df_worklist 알고리즘
+
+이 함수가 바로 데이터 흐름 분석 엔진입니다. 모든 블록을 무작정 반복하는 대신, 상태 값에 변경이 생긴 블록의 후임자(또는 전임자)만을 `worklist`라는 큐에 넣어 효율적으로 고정점을 찾습니다.
+
+```python
+def df_worklist(blocks, analysis):
+    # ... ( preds, succs 계산, 방향 설정 ) ...
+    
+    # 1. 초기화
+    in_ = {first_block: analysis.init}
+    out = {node: analysis.init for node in blocks}
+    
+    worklist = list(blocks.keys())
+    while worklist:
+        node = worklist.pop(0)
+
+        # 2. Merge: 모든 전임자(predecessor)들의 out 값을 병합
+        inval = analysis.merge(out[n] for n in in_edges[node])
+        in_[node] = inval
+
+        # 3. Transfer: 블록을 통과시키며 out 값을 계산
+        outval = analysis.transfer(blocks[node], inval)
+
+        # 4. 고정점 확인: out 값이 변경되었는지 확인
+        if outval != out[node]:
+            out[node] = outval
+            # 변경되었다면, 이 노드의 후임자(successor)들을 worklist에 추가
+            worklist += out_edges[node]
+            
+    # ... (결과 반환) ...
+```
+
+
+
+```python
+def normalize():
+    # ... (CSV 읽기) ...
+
+    # 1. Get normalization baselines.
+    baselines = {
+        row['benchmark']: int(row['result'])
+        for row in in_data
+        if row['run'] == 'baseline'
+    }
+
+    # 2. Write output CSV back out.
+    # ... (writer 생성) ...
+    ratios = defaultdict(list)
+    for row in in_data:
+        # 3. Calculate ratio against baseline
+        ratio = int(row['result']) / baselines[row['benchmark']]
+        ratios[row['run']].append(ratio)
+        row['result'] = ratio
+        writer.writerow(row)
+
+    # 4. Print stats.
+    for run, rs in ratios.items():
+        for name, func in STATS.items():
+            print(
+                '{}({}) = {:.2f}'.format(name, run, func(rs)),
+                file=sys.stderr,
+            )
+```
+
+### 3. 구현된 분석 예제
+
+`df.py`는 이 프레임워크를 사용한 두 가지 고전적인 분석을 예제로 제공합니다.
+
+#### 1. 'live': 활성 변수 분석 (Live Variable Analysis)
+
+* **목적:** 어떤 변수가 "활성(live)" 상태인지, 즉 "현재 지점에서 정의된 값이 미래에 사용될 가능성이 있는지"를 파악합니다. (주로 레지스터 할당, 정교한 죽은 코드 제거에 사용됩니다.)
+* **특징:** 역방향(Backward) 분석입니다 (`forward: False`). 프로그램의 끝에서부터 거꾸로 분석을 수행합니다.
+* **전달 함수:** $LiveIn(n) = Use(n) \cup (LiveOut(n) - Gen(n))$
+    * $Use(n)$: 이 블록에서 (정의되기 전에) 사용되는 변수.
+    * $Gen(n)$: 이 블록에서 정의되는(덮어쓰이는) 변수.
+
+#### 2. 'cprop': 상수 전파 (Constant Propagation)
+
+* **목적:** "어떤 변수가 항상 특정 상수 값을 가지는가?"를 파악합니다.
+* **특징:** 순방향(Forward) 분석입니다 (`forward: True`).
+* **상태 값:** `{ 'v': 5, 'x': '?', 'z': 10 }`
+    * `5`: 이 지점에서 `v`는 항상 5입니다.
+    * `'?'`: 이 지점에서 `x`는 상수가 아니거나, 여러 경로에서 온 상수 값이 다릅니다 (Lattice의 $\top$).
+* **Merge 함수 (cprop_merge):**
+    * `merge({v: 5}, {v: 5})` $\rightarrow$ `{v: 5}`
+    * `merge({v: 5}, {v: 7})` $\rightarrow$ `{v: '?'}`
+
+---
+
+## 11. 최적화 성능 측정 (normalize.py)
+
+3부에서 `lvn.py` (중복 연산 제거)와 `tdce.py` (죽은 코드 제거) 같은 최적화 패스를 구현했습니다. 그렇다면 이 최적화들이 과연 "얼마나" 코드를 향상시켰을까요?
+
+이를 확인하려면 **벤치마킹(Benchmarking)**이 필요합니다. `normalize.py`는 이 벤치마킹 결과를 처리해주는 유틸리티입니다.
+
+* `normalize.py`는 각 벤치마크의 여러 실행 결과(예: 총 명령어 수)가 담긴 CSV 파일을 입력받습니다.
+
+### normalize.py 핵심 로직 분석
+
+이 스크립트의 목적은 "절대적인 명령어 수" (예: 150개)를 "상대적인 성능 비율" (예: 0.85배)로 변환하는 것입니다.
+
+1.  **CSV 읽기:** 벤치마킹 결과 CSV를 읽습니다. (예상 형식: `benchmark, run, result`)
+2.  **'baseline' 찾기:** `run == 'baseline'`인 행을 찾아, 각 벤치마크의 기준 성능(`baselines[...] = int(row['result'])`)을 맵에 저장합니다.
+3.  **정규화(Normalize):**
+    * CSV를 다시 순회하며 각 행(`row`)의 `result`를 `baseline`의 `result`로 나눕니다.
+    * `ratio = int(row['result']) / baselines[row['benchmark']]`
+    * (예: `lvn_run`의 `result`가 85, `baseline`이 100이었다면 `ratio = 0.85`)
+4.  **통계 출력:**
+    * 각 `run` (예: `lvn_only`)별로 모든 `ratio`의 **기하 평균(geometric_mean)**을 계산하여 출력합니다.
+
+```python
+def normalize():
+    # ... (CSV 읽기) ...
+
+    # 1. Get normalization baselines.
+    baselines = {
+        row['benchmark']: int(row['result'])
+        for row in in_data
+        if row['run'] == 'baseline'
+    }
+
+    # 2. Write output CSV back out.
+    # ... (writer 생성) ...
+    ratios = defaultdict(list)
+    for row in in_data:
+        # 3. Calculate ratio against baseline
+        ratio = int(row['result']) / baselines[row['benchmark']]
+        ratios[row['run']].append(ratio)
+        row['result'] = ratio
+        writer.writerow(row)
+
+    # 4. Print stats.
+    for run, rs in ratios.items():
+        for name, func in STATS.items():
+            print(
+                '{}({}) = {:.2f}'.format(name, run, func(rs)),
+                file=sys.stderr,
+            )
+```
+
+> 이 스크립트를 통해 "LVN 최적화를 켰더니, 기준(baseline) 대비 명령어 수가 평균 85% 수준(기하 평균 0.85)이 되었다"와 같은 정량적인 결론을 내릴 수 있습니다.
+
+---
+
+## 12. 공통 유틸리티 함수 (util.py)
+
+파이프라인 전반에 걸쳐 사용된 몇 가지 편의 함수들이 `util.py`에 정의되어 있습니다.
+
+### 1. flatten(ll)
+
+`reassemble` 함수 등에서 여러 기본 블록(리스트의 리스트)을 다시 하나의 긴 명령어 리스트로 합칠 때 사용됩니다.
+
+```python
+import itertools
+
+def flatten(ll):
+    """Flatten an iterable of iterable to a single list.
+    """
+    return list(itertools.chain(*ll))
+```
+
+### 2. fresh(seed, names)
+
+`cfg.py`의 `block_map` 함수에서 레이블이 없는 **익명 블록(anonymous block)**에 `b1`, `b2`와 같이 고유한 이름을 붙여줄 때 사용됩니다.
+
+```python
+def fresh(seed, names):
+    """Generate a new name that is not in `names` starting with `seed.
+    """
+    i = 1
+    while True:
+        name = seed + str(i)
+        if name not in names:
+            return name
+        i += 1
+```
