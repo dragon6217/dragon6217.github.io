@@ -1,6 +1,6 @@
 ---
 title: "L15. Period-Finding (Simon's Algorithm over Z_N)"
-description: "Shor 알고리즘의 핵심인 '주기 찾기' 문제를 $\mathbb{Z}_N$ (산술) 그룹으로 일반화합니다. 'L|N' (이상적 주기)의 경우, QFT가 '펄스 열'을 '펄스 열'로 변환함을 증명하고, $\text{gcd}$를 이용한 $O(1)$의 효율적인 후처리를 분석합니다. 나아가 'L nmid N' (현실적 주기)의 경우, QFT가 '근사 피크'를 생성하지만, '연분수 알고리즘'을 통해 여전히 다항식 시간에 주기를 찾을 수 있음을 보입니다."
+description: 'Shor 알고리즘의 핵심인 "주기 찾기" 문제를 $\mathbb{Z}_N$ (산술) 그룹으로 일반화합니다. "L|N" (이상적 주기)의 경우, QFT가 "펄스 열"을 "펄스 열"로 변환함을 증명하고, $\text{gcd}$를 이용한 $O(1)$의 효율적인 후처리를 분석합니다. 나아가 "L nmid N" (현실적 주기)의 경우, QFT가 "근사 피크"를 생성하지만, "연분수 알고리즘"을 통해 여전히 다항식 시간에 주기를 찾을 수 있음을 보입니다.'
 author: "Analysis by Gemini"
 date: "2025-11-02"
 categories: [Quantum Computing, Quantum Algorithms, QFT, Shor's Algorithm, Period Finding]
