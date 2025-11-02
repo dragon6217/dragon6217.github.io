@@ -1,0 +1,14 @@
+---
+title: "컴파일러 백엔드 시리즈"
+listing:
+  contents: "*/index.qmd"  # 👈 하위 폴더(L4)의 index.qmd만 찾음
+  sort: "title asc"       # 👈 중요: 날짜가 아닌 제목(1, 2, 3) 순으로 정렬
+  type: grid
+  categories: true
+  sort-ui: false
+  filter-ui: true
+---
+
+## 컴파일러 백엔드 시리즈
+
+컴파일러 최적화의 기반이 되는 CFG, SSA, 데이터 흐름 분석 등을 단계별로 구현합니다.

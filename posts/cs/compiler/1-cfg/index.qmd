@@ -1,0 +1,251 @@
+---
+title: "컴파일러 백엔드 시리즈 1부: 제어 흐름 그래프(CFG) 구축하기"
+description: "Bril IR을 입력받아 선형적인 코드를 기본 블록(Basic Block)으로 분할하고, 이를 연결하여 모든 분석의 기초가 되는 제어 흐름 그래프(CFG)를 구축 및 시각화하는 과정을 분석합니다."
+date: "2025-11-02"
+categories: [Compiler, Python, Bril, CFG]
+image: "images/cover_cfg.png"
+---
+
+## 1. 기본 블록 (Basic Block) 생성: CFG의 기초
+
+컴파일러 백엔드에서 수행하는 모든 분석과 최적화의 첫걸음은 코드를 의미 있는 단위로 나누는 것입니다. 그 가장 기본적인 단위가 바로 **기본 블록(Basic Block)**입니다.
+
+> **기본 블록(Basic Block)이란?**
+> "단일 진입점(Single Entry), 단일 진출점(Single Exit)" 원칙을 따르는 명령어의 연속된 시퀀스입니다.
+> 1.  **단일 진입점:** 코드의 맨 위에서부터 실행되거나, 다른 블록에서의 점프(jump) 대상이 되는 '리더(leader)' 명령어로만 진입이 가능합니다. 블록 중간으로 점프해 들어올 수 없습니다.
+> 2.  **단일 진출점:** 블록의 가장 마지막 명령어를 실행하면, 다음 블록으로 제어가 넘어갑니다. 블록 중간에서 밖으로 점프해 나갈 수 없습니다.
+
+`form_blocks.py`의 유일한 임무는 Bril의 선형적인 명령어 리스트를 입력받아, 이 기본 블록 원칙에 따라 여러 개의 블록 리스트로 분할하는 것입니다.
+
+
+
+### `form_blocks.py` 핵심 로직 분석
+
+이 스크립트는 Bril 명령어 리스트(`instrs`)를 처음부터 끝까지 단 한 번 **선형 스캔(linear scan)**하면서 블록을 나눕니다. 블록을 나누는 기준은 매우 명확하며, 다음 두 가지 규칙을 따릅니다.
+
+1.  **Terminators (종결자):** `br` (분기), `jmp` (무조건 점프), `ret` (반환) 명령어는 현재 블록의 **마지막** 명령어입니다. 이 명령어를 만나면 현재 블록을 닫고 다음 명령어부터 새 블록을 시작합니다.
+2.  **Labels (레이블):** 레이블은 항상 새로운 블록의 **시작**입니다. 따라서 레이블을 만나면, (만약 그전까지의 블록에 내용이 있었다면) 그전까지의 블록을 닫고, 이 레이블부터 새로운 블록을 시작합니다.
+
+핵심 로직은 `form_blocks` 함수에 있으며, Python의 **제너레이터(generator)**로 구현되어 있어 메모리 효율적입니다.
+
+```python
+# Instructions that terminate a basic block.
+TERMINATORS = 'br', 'jmp', 'ret'
+
+
+def form_blocks(instrs):
+    """Given a list of Bril instructions, generate a sequence of
+    instruction lists representing the basic blocks in the program.
+    """
+
+    # Start with an empty block.
+    cur_block = []
+
+    for instr in instrs:
+        if 'op' in instr:  # It's an instruction.
+            # Add the instruction to the currently-being-formed block.
+            cur_block.append(instr)
+
+            # If this is a terminator (branching instruction), it's the
+            # last instruction in the block. Finish this block and
+            # start a new one.
+            if instr['op'] in TERMINATORS:
+                yield cur_block
+                cur_block = []
+
+        else:  # It's a label.
+            # End the block here (if it contains anything).
+            if cur_block:
+                yield cur_block
+
+            # Start a new block with the label.
+            cur_block = [instr]
+
+    # Produce the final block, if any.
+    if cur_block:
+        yield cur_block
+```
+### 코드 해설
+
+* **`cur_block`**: 현재 구성 중인 기본 블록(명령어 리스트)을 임시로 저장하는 변수입니다.
+* **`if 'op' in instr:`**: Bril에서 명령어(instruction)는 `op` 키를 가지고, 레이블(label)은 `label` 키를 가집니다. 이 라인은 현재 항목이 명령어인지 확인합니다.
+    * 명령어라면 `cur_block`에 추가합니다.
+    * 만약 이 명령어가 `TERMINATORS` 중 하나라면, 이 명령어는 현재 블록의 마지막이므로 `yield` 키워드를 사용해 `cur_block`을 반환하고, `cur_block`을 비워 새 블록을 준비합니다.
+* **`else:`**: 레이블을 만난 경우입니다. 레이블은 새로운 블록의 시작입니다.
+    * **`if cur_block:`**: 만약 레이블을 만나기 직전까지 `cur_block`에 명령어가 있었다면 (즉, 이전 블록이 종결자 없이 끝난 경우), 해당 블록을 `yield`로 반환하여 먼저 종료시킵니다.
+    * **`cur_block = [instr]`**: 이 레이블을 첫 번째 항목으로 하는 새로운 `cur_block`을 시작합니다.
+* **`if cur_block: (루프 종료 후)`**: 마지막 블록이 `ret` 같은 종결자로 끝나지 않았을 경우, 루프가 끝난 뒤 `cur_block`에 남아있는 명령어가 있을 수 있습니다. 이를 마지막 블록으로 반환합니다.
+
+---
+
+## 2. 제어 흐름 그래프 (CFG) 구축
+
+앞선 단계에서 우리는 선형적인 코드를 여러 개의 '기본 블록' 덩어리로 분리했습니다. 하지만 이 블록들은 아직 이름도 없고 서로 어떻게 연결되어 있는지도 모르는, 말 그대로 '명령어 리스트의 리스트'일 뿐입니다.
+`cfg.py`의 역할은 이 블록들에 고유한 이름을 부여하고, 블록 간의 **제어 흐름(간선)**을 명시적으로 찾아내어 **'전임자(predecessors)'**와 **'후임자(successors)'** 목록을 가진 완전한 그래프 자료구조를 만드는 것입니다.
+
+### `cfg.py` 핵심 로직 분석
+
+CFG 구축은 다음 세 가지 주요 단계를 통해 이루어집니다.
+
+1.  **1단계: 블록 맵 생성 (`block_map`)**
+    가장 먼저, 각 기본 블록(노드)을 식별할 고유한 이름이 필요합니다. `block_map` 함수는 `form_blocks`에서 생성된 블록 리스트를 순회하며 `OrderedDict` 자료구조를 생성합니다.
+    * **레이블이 있는 블록:** `block[0]`(블록의 첫 번째 항목)이 레이블이면, 해당 레이블을 블록의 이름으로 사용하고 명령어 목록에서 레이블을 제거합니다.
+    * **익명 블록(Anonymous Block):** 레이블이 없는 블록(예: `jmp`나 `br` 바로 다음의 블록)은 `fresh('b', ...)` 유틸리티 함수를 호출하여 `b1`, `b2`와 같이 충돌하지 않는 새 이름을 부여받습니다.
+
+```python
+def block_map(blocks):
+    """Given a sequence of basic blocks, which are lists of instructions,
+    produce a `OrderedDict` mapping names to blocks.
+    ...
+    """
+    by_name = OrderedDict()
+
+    for block in blocks:
+        # Generate a name for the block.
+        if 'label' in block[0]:
+            # The block has a label. Remove the label but use it for the
+            # block's name.
+            name = block[0]['label']
+            block = block[1:]
+        else:
+            # Make up a new name for this anonymous block.
+            name = fresh('b', by_name)
+
+        # Add the block to the mapping.
+        by_name[name] = block
+
+    return by_name
+```
+
+### 2단계: 암묵적 제어 흐름 명시화 (add_terminators)
+
+`form_blocks` 단계에서 생성된 블록 중 일부는 `br`, `jmp`, `ret` 같은 종결자(Terminator) 명령어 없이 끝날 수 있습니다. 이는 "실행이 끝나면 코딩된 순서상의 다음 블록으로 암묵적으로 넘어간다(fall-through)"는 의미입니다. 하지만 그래프 분석을 위해서는 모든 제어 흐름이 **명시적(explicit)**이어야 합니다.
+
+`add_terminators` 함수는 `block_map`을 순회하며 종결자가 없는 모든 블록을 찾아내어 명시적인 `jmp` 또는 `ret` 명령어를 추가합니다.
+
+* 종결자가 없으면서 마지막 블록이 아니면: **다음 블록으로 가는 `jmp`**를 추가합니다.
+* 종결자가 없으면서 마지막 블록이면: **`ret`**를 추가합니다.
+
+```python
+def add_terminators(blocks):
+    """Given an ordered block map, modify the blocks to add terminators
+    to all blocks (avoiding "fall-through" control flow transfers).
+    """
+    for i, block in enumerate(blocks.values()):
+        # ... (Check for empty blocks removed for brevity) ...
+        if block[-1]['op'] not in TERMINATORS:
+            if i == len(blocks) - 1:
+                block.append({'op': 'ret', 'args': []})
+            else:
+                # Otherwise, jump to the next block.
+                dest = list(blocks.keys())[i + 1]
+                block.append({'op': 'jmp', 'labels': [dest]})
+```
+
+> 💡 **중요:** 이 `add_terminators` 단계가 완료된 시점에서, 각 블록의 마지막 명령어는 반드시 `br`, `jmp`, `ret` 중 하나가 되며, 이 명령어가 해당 블록에서 나가는 모든 간선(edge) 정보를 담고 있게 됩니다.
+
+### 3단계: 간선 생성 (edges)
+
+이제 모든 블록이 이름과 명시적인 종결자를 가졌으므로, 실제 그래프(간선)를 만들 수 있습니다. `edges` 함수는 `blocks` 맵을 순회하며 각 블록의 종결자(`block[-1]`)를 검사합니다.
+
+* `successors` 헬퍼 함수를 통해 종결자에 포함된 `labels` (대상 레이블) 목록을 가져옵니다.
+* `succs[name].append(succ)`: 현재 블록(`name`)의 후임자(successor) 목록에 대상 레이블(`succ`)을 추가합니다.
+* `preds[succ].append(name)`: 대상 레이블 블록(`succ`)의 전임자(predecessor) 목록에 현재 블록(`name`)을 추가합니다.
+
+```python
+def successors(instr):
+    """Get the list of jump target labels for an instruction.
+    ...
+    """
+    if instr['op'] in ('jmp', 'br'):
+        return instr['labels']
+    elif instr['op'] == 'ret':
+        return []  # No successors to an exit block.
+    # ...
+
+def edges(blocks):
+    """Given a block map containing blocks complete with terminators,
+    generate two mappings: predecessors and successors. Both map block
+    names to lists of block names.
+    """
+    preds = {name: [] for name in blocks}
+    succs = {name: [] for name in blocks}
+    for name, block in blocks.items():
+        for succ in successors(block[-1]):
+            succs[name].append(succ)
+            preds[succ].append(name)
+    return preds, succs
+```
+
+## 3. CFG 시각화 (Graphviz)
+
+CFG는 그래프 자료구조이므로, 텍스트로만 파악하기는 매우 어렵습니다. 특히 복잡한 분기문(if/else)이나 루프(loop)가 포함된 경우, 그래프를 시각화하는 것은 필수적입니다.
+
+`cfg_dot.py` 스크립트는 `cfg.py`에서 만든 CFG(블록 맵)를 입력받아, **Graphviz**라는 그래프 시각화 도구가 읽을 수 있는 **DOT 언어** 스크립트를 생성합니다.
+
+### `cfg_dot.py` 핵심 로직 분석
+
+이 스크립트의 `cfg_dot` 함수는 이전에 우리가 정의한 함수들을 순서대로 호출합니다.
+
+1.  **`blocks = block_map(form_blocks(func['instrs'])):`** Bril 함수로부터 기본 블록을 만들고, `block_map`을 호출하여 이름이 부여된 블록 맵을 생성합니다.
+2.  **`add_terminators(blocks):`** `cfg.py`에서 봤던 함수를 호출하여 모든 블록이 명시적인 종결자(간선 정보)를 갖도록 보장합니다.
+3.  **정점(Vertices) 출력:** `blocks.items()`를 순회하며 DOT 파일에 노드(정점)를 정의합니다.
+    * `-v (verbose)` 옵션이 켜져 있으면, 노드를 사각형(`shape=box`)으로 그리고 `label` 속성에 해당 블록의 모든 Bril 명령어를 `\l` (왼쪽 정렬 줄바꿈)로 엮어 함께 출력합니다.
+4.  **간선(Edges) 출력:** `blocks.items()`를 다시 순회하며 각 블록의 마지막 명령어(`block[-1]`)에 대해 `successors` 함수를 호출하여 `현재블록 -> 후임자블록;` 형태의 DOT 간선(화살표)을 출력합니다.
+
+```python
+def cfg_dot(bril, verbose):
+    """Generate a GraphViz "dot" file showing the control flow graph for
+    a Bril program.
+    ...
+    """
+    for func in bril['functions']:
+        print('digraph {} {{'.format(func['name']))
+
+        # 1. Get named blocks
+        blocks = block_map(form_blocks(func['instrs']))
+
+        # 2. Make edges explicit
+        add_terminators(blocks)
+
+        # 3. Add the vertices (nodes)
+        for name, block in blocks.items():
+            if verbose:
+                import briltxt
+                print(r'  {} [shape=box, xlabel="{}", label="{}\l"];'.format(
+                    quote_if_needed(name),
+                    name,
+                    r'\l'.join(briltxt.instr_to_string(i) for i in block),
+                ))
+            else:
+                print('  {};'.format(name))
+
+        # 4. Add the control-flow edges (arrows)
+        for i, (name, block) in enumerate(blocks.items()):
+            succ = successors(block[-1])
+            for label in succ:
+                print('  {} -> {};'.format(quote_if_needed(name), 
+                                        quote_if_needed(label)))
+
+        print('}')
+```
+
+## Quarto에서 CFG 시각화하기
+
+`cfg_dot.py`가 생성한 DOT 코드를 `.qmd` 파일에 내장하면, 독자에게 실제 CFG를 인터랙티브하게 보여줄 수 있습니다.
+
+예를 들어, 간단한 `if`문 Bril 코드를 이 스크립트로 처리하면 다음과 유사한 DOT 출력을 생성합니다.
+
+```{dot}
+digraph my_function { entry [shape=box, xlabel="entry", label="v: int = const 4\lbr cond if.then if.else\l"];
+
+// 에지(edge)를 정의할 때 따옴표로 감싸줍니다. 
+entry -> "if.then"; entry -> "if.else";
+
+// 노드(node)를 정의할 때도 따옴표로 감싸줍니다. 
+"if.then" [shape=box, xlabel="if.then", label="v: int = add v v\ljmp if.end\l"]; "if.then" -> "if.end";
+
+"if.else" [shape=box, xlabel="if.else", label="v: int = const 0\ljmp if.end\l"]; "if.else" -> "if.end";
+
+"if.end" [shape=box, xlabel="if.end", label="print v\lret\l"]; }
+```
