@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2025-11-02">
+<meta name="description" content="SSA 폼의 강력함을 활용한 최적화 기법(LVN, TDCE)을 분석하고, Phi(φ) 함수를 제거하여 다시 실행 가능한 코드로 되돌리는 파이프라인의 마지막 단계를 다룹니다.">
+
+<title>컴파일러 백엔드 시리즈 3부: SSA를 활용한 최적화와 해제 – dragon6217.github.io</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../../">
+<script src="../../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../../site_libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../../site_libs/bootstrap/bootstrap-0b37c64f34216b628666a8dac638b53b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../../../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../../../index.html">
+    <span class="navbar-title">dragon6217.github.io</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/cs/index.html"> 
+<span class="menu-text">Computer Science</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/math/index.html"> 
+<span class="menu-text">Mathematics</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/dragon6217"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#최적화-1-lvn-local-value-numbering" id="toc-최적화-1-lvn-local-value-numbering" class="nav-link active" data-scroll-target="#최적화-1-lvn-local-value-numbering">7. 최적화 1: LVN (Local Value Numbering)</a>
+  <ul class="collapse">
+  <li><a href="#lvn.py-핵심-로직-분석" id="toc-lvn.py-핵심-로직-분석" class="nav-link" data-scroll-target="#lvn.py-핵심-로직-분석"><code>lvn.py</code> 핵심 로직 분석</a></li>
+  </ul></li>
+  <li><a href="#최적화-2-tdce-trivial-dead-code-elimination" id="toc-최적화-2-tdce-trivial-dead-code-elimination" class="nav-link" data-scroll-target="#최적화-2-tdce-trivial-dead-code-elimination">8. 최적화 2: TDCE (Trivial Dead Code Elimination)</a>
+  <ul class="collapse">
+  <li><a href="#trivial_dce_pass-핵심-로직-분석" id="toc-trivial_dce_pass-핵심-로직-분석" class="nav-link" data-scroll-target="#trivial_dce_pass-핵심-로직-분석"><code>trivial_dce_pass</code> 핵심 로직 분석</a></li>
+  </ul></li>
+  <li><a href="#pass-2-죽은-코드-제거-sweep" id="toc-pass-2-죽은-코드-제거-sweep" class="nav-link" data-scroll-target="#pass-2-죽은-코드-제거-sweep">2. Pass 2: 죽은 코드 제거 (Sweep)</a>
+  <ul class="collapse">
+  <li><a href="#from_ssa.py-핵심-로직-분석" id="toc-from_ssa.py-핵심-로직-분석" class="nav-link" data-scroll-target="#from_ssa.py-핵심-로직-분석">from_ssa.py 핵심 로직 분석</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">컴파일러 백엔드 시리즈 3부: SSA를 활용한 최적화와 해제</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Compiler</div>
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">Bril</div>
+    <div class="quarto-category">SSA</div>
+    <div class="quarto-category">Optimization</div>
+    <div class="quarto-category">LVN</div>
+    <div class="quarto-category">TDCE</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    SSA 폼의 강력함을 활용한 최적화 기법(LVN, TDCE)을 분석하고, Phi(φ) 함수를 제거하여 다시 실행 가능한 코드로 되돌리는 파이프라인의 마지막 단계를 다룹니다.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 2, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>2부에서 우리는 복잡한 과정을 거쳐 Bril 코드를 <strong>SSA (Static Single Assignment) 폼</strong>으로 변환하고 검증했습니다. 이 모든 작업을 수행한 이유는 SSA 폼이 컴파일러 <strong>최적화(Optimization)</strong>를 매우 단순하고 강력하게 만들어주기 때문입니다.</p>
+<p>3부에서는 SSA 폼(혹은 일반 IR)을 활용하는 두 가지 대표적인 최적화(<code>lvn.py</code>, <code>tdce.py</code>)를 살펴보고, 최적화가 끝난 코드를 다시 실행 가능한 형태로 되돌리는 <code>from_ssa.py</code>를 분석합니다.</p>
+<section id="최적화-1-lvn-local-value-numbering" class="level2">
+<h2 class="anchored" data-anchor-id="최적화-1-lvn-local-value-numbering">7. 최적화 1: LVN (Local Value Numbering)</h2>
+<p><code>lvn.py</code>는 가장 고전적이고 효과적인 <strong>국소 최적화(Local Optimization)</strong> 기법인 <strong>Local Value Numbering(LVN)</strong>을 구현합니다. LVN은 하나의 기본 블록 <em>내에서</em> 작동하며, 핵심 아이디어는 간단합니다.</p>
+<blockquote class="blockquote">
+<p>“이전에 <em>똑같은 연산</em>을 <em>똑같은 값</em>으로 수행한 적이 있다면, 다시 계산하지 말고 이전 결과를 재사용하자.”</p>
+</blockquote>
+<p>LVN은 한 기본 블록 내에서 다음과 같은 최적화를 동시에 수행합니다.</p>
+<ol type="1">
+<li><strong>공통 부분 표현식 제거 (Common Subexpression Elimination, CSE):</strong>
+<ul>
+<li><code>a = b + c;</code></li>
+<li><code>d = b + c;</code> <span class="math inline">\(\rightarrow\)</span> <code>d = id a;</code> (d는 a와 같음)</li>
+</ul></li>
+<li><strong>상수 폴딩 (Constant Folding):</strong>
+<ul>
+<li><code>a = 5 + 2;</code> <span class="math inline">\(\rightarrow\)</span> <code>a = const 7;</code></li>
+</ul></li>
+<li><strong>복사 전파 (Copy Propagation):</strong>
+<ul>
+<li><code>a = b;</code></li>
+<li><code>c = a + 1;</code> <span class="math inline">\(\rightarrow\)</span> <code>c = b + 1;</code></li>
+</ul></li>
+</ol>
+<section id="lvn.py-핵심-로직-분석" class="level3">
+<h3 class="anchored" data-anchor-id="lvn.py-핵심-로직-분석"><code>lvn.py</code> 핵심 로직 분석</h3>
+<p>LVN은 기본 블록을 스캔하면서 “값(Value)”을 식별하는 여러 개의 맵(테이블)을 유지 관리합니다.</p>
+<ul>
+<li><code>var2num</code>: <code>Map&lt;VarName, ValueNumber&gt;</code>
+<ul>
+<li>현재 시점에 각 <strong>변수</strong>가 어떤 <strong>값 번호</strong>를 갖고 있는지 추적합니다.</li>
+</ul></li>
+<li><code>value2num</code>: <code>Map&lt;ValueTuple, ValueNumber&gt;</code>
+<ul>
+<li>특정 <strong>연산</strong>(<code>Value(op, args)</code>)이 어떤 <strong>값 번호</strong>와 매핑되는지 저장하는 ’캐시’입니다.</li>
+</ul></li>
+<li><code>num2vars</code>: <code>Map&lt;ValueNumber, VarName&gt;</code>
+<ul>
+<li>특정 <strong>값 번호</strong>를 저장하고 있는 <strong>대표 변수</strong>가 무엇인지 저장합니다. (CSE용)</li>
+</ul></li>
+<li><code>num2const</code>: <code>Map&lt;ValueNumber, Literal&gt;</code>
+<ul>
+<li>특정 <strong>값 번호</strong>가 <strong>상수</strong>임을 저장합니다. (상수 폴딩용)</li>
+</ul></li>
+</ul>
+<p><code>lvn_block</code>의 메인 루프는 명령어를 순회하며 다음을 수행합니다.</p>
+<ol type="1">
+<li><strong>인자(Args) 번호 조회:</strong> 명령어의 인자(<code>argvars</code>)가 <code>var2num</code> 테이블을 참조하여 어떤 <em>값 번호</em>(<code>argnums</code>)를 갖는지 확인합니다.</li>
+<li><strong>값(Value) 생성:</strong> <code>val = Value(instr['op'], argnums)</code> 튜플을 생성합니다. (예: <code>Value('add', (1, 2))</code>)</li>
+<li><strong>캐시 조회(CSE):</strong> <code>num = lookup(value2num, val)</code></li>
+<li><strong>캐시 히트 (Hit) - 중복 연산 발견!</strong>
+<ul>
+<li>이전에 계산된 값 번호(<code>num</code>)를 가져옵니다.</li>
+<li>현재 명령어를 <code>op: 'const'</code> (상수 폴딩) 또는 <code>op: 'id'</code> (CSE/복사 전파)로 덮어씁니다.</li>
+</ul></li>
+<li><strong>캐시 미스 (Miss) - 새로운 연산!</strong>
+<ul>
+<li><strong>새로운 값 번호</strong>(<code>newnum</code>)를 생성합니다.</li>
+<li><code>value2num[val] = newnum</code>: <code>value2num</code> 캐시에 이 새로운 <code>Value</code>와 <code>newnum</code>을 저장합니다.</li>
+</ul></li>
+</ol>
+<blockquote class="blockquote">
+<p><strong>💡 LVN과 SSA의 관계</strong></p>
+<p>이 <code>lvn.py</code> 구현은 <strong>국소적(Local)</strong>입니다. 즉, 기본 블록이 끝나면 모든 테이블 정보가 사라집니다.</p>
+<p>반면, 2부에서 수행한 <strong>SSA 변환</strong>은 그 자체로 <strong>전역적(Global)</strong>인 ‘값 번호 매기기’(Global Value Numbering, GVN)의 한 형태입니다. SSA 폼에서는 <code>x.0</code>, <code>x.1</code> 같은 변수 이름 자체가 그 값의 고유한 ‘번호’ 역할을 하기 때문입니다.</p>
+</blockquote>
+<hr>
+</section>
+</section>
+<section id="최적화-2-tdce-trivial-dead-code-elimination" class="level2">
+<h2 class="anchored" data-anchor-id="최적화-2-tdce-trivial-dead-code-elimination">8. 최적화 2: TDCE (Trivial Dead Code Elimination)</h2>
+<p>최적화의 또 다른 큰 축은 “불필요한 코드”를 제거하는 것입니다. <strong>죽은 코드(Dead Code)</strong>란, 그 코드를 실행한 결과(정의된 변수)가 프로그램의 나머지 부분 어디에서도 <strong>전혀 사용되지 않는</strong> 코드를 말합니다.</p>
+<p><code>tdce.py</code>의 “Trivial” (간단한)이라는 이름은 이 최적화가 복잡한 데이터 흐름 분석 없이, 매우 간단한 스캔만으로 죽은 코드를 찾아낸다는 의미입니다.</p>
+<p>이 간단한 접근 방식은 <strong>SSA 폼에서 특히 강력</strong>합니다.</p>
+<ul>
+<li><strong>일반 IR:</strong> <code>x = 1; x = 2; print(x);</code>
+<ul>
+<li><code>x = 1</code>은 죽은 코드가 맞지만, <code>x</code>라는 변수 자체는 <code>print(x)</code>에서 ’사용’됩니다. 이 코드가 죽었는지 판별하기 까다롭습니다.</li>
+</ul></li>
+<li><strong>SSA 폼:</strong> <code>x.0 = 1; x.1 = 2; print(x.1);</code>
+<ul>
+<li><code>x.0</code>이라는 변수는 단 한 번 정의됩니다.</li>
+<li>프로그램 전체를 스캔해서 <code>x.0</code>을 <code>args</code>로 사용하는 명령어가 <strong>단 하나도 없다면</strong>, <code>x.0 = 1</code> 명령어는 <strong>명백하게(Trivially) 죽은 코드</strong>입니다.</li>
+</ul></li>
+</ul>
+<section id="trivial_dce_pass-핵심-로직-분석" class="level3">
+<h3 class="anchored" data-anchor-id="trivial_dce_pass-핵심-로직-분석"><code>trivial_dce_pass</code> 핵심 로직 분석</h3>
+<p><code>trivial_dce_pass</code> 함수는 간단한 2-Pass 알고리즘으로 동작합니다.</p>
+<section id="pass-1-사용된-변수-마킹-mark" class="level4">
+<h4 class="anchored" data-anchor-id="pass-1-사용된-변수-마킹-mark">1. Pass 1: 사용된 변수 마킹 (Mark)</h4>
+<p>먼저, 함수 전체를 한 번 스캔하여 “단 한 번이라도 <code>args</code>로 사용된” 변수들의 <strong>전역 집합(global set)</strong> <code>used</code>를 만듭니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>    used <span class="op">=</span> <span class="bu">set</span>()</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> block <span class="kw">in</span> blocks:</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> instr <span class="kw">in</span> block:</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Mark all the variable arguments as used.</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>            used.update(instr.get(<span class="st">'args'</span>, []))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+</section>
+<section id="pass-2-죽은-코드-제거-sweep" class="level2">
+<h2 class="anchored" data-anchor-id="pass-2-죽은-코드-제거-sweep">2. Pass 2: 죽은 코드 제거 (Sweep)</h2>
+<p><code>used</code> 집합이 완성되면, 함수 전체를 다시 스캔하며 각 명령어를 필터링합니다.</p>
+<ul>
+<li><strong>’dest’가 없는 명령어</strong> (예: <code>print</code>, <code>br</code>): 절대 제거하지 않습니다 (Keep).</li>
+<li><strong>’dest’가 있는 명령어:</strong> <code>if i['dest'] in used:</code>
+<ul>
+<li>목적지 변수가 <code>used</code> 집합에 있다면: 유지합니다 (Keep).</li>
+<li>목적지 변수가 <code>used</code> 집합에 없다면: 제거합니다 (Sweep).</li>
+</ul></li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>new_block <span class="op">=</span> [i <span class="cf">for</span> i <span class="kw">in</span> block</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                   <span class="cf">if</span> <span class="st">'dest'</span> <span class="kw">not</span> <span class="kw">in</span> i <span class="kw">or</span> i[<span class="st">'dest'</span>] <span class="kw">in</span> used]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> 변환 전</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>.pred1:</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  v<span class="fl">.0</span> <span class="op">=</span> const <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  br cond .after .pred2<span class="op">;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>.pred2:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  v<span class="fl">.1</span> <span class="op">=</span> const <span class="dv">2</span><span class="op">;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  jmp .after<span class="op">;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>.after:</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  v<span class="fl">.2</span> <span class="op">=</span> phi v<span class="fl">.0</span> v<span class="fl">.1</span><span class="op">;</span> <span class="op">//</span> .pred1에서 오면 v<span class="fl">.0</span>, .pred2에서 오면 v<span class="fl">.1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">//</span> 변환 후 (Phi<span class="op">-</span>Lowering)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>.pred1:</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  v<span class="fl">.0</span> <span class="op">=</span> const <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  v<span class="fl">.2</span> <span class="op">=</span> <span class="bu">id</span> v<span class="fl">.0</span><span class="op">;</span>      <span class="op">//</span> <span class="op">&lt;---</span> .after를 위해 미리 v<span class="fl">.2</span><span class="er">에</span> v<span class="fl">.0</span> 복사</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  br cond .after .pred2<span class="op">;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>.pred2:</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  v<span class="fl">.1</span> <span class="op">=</span> const <span class="dv">2</span><span class="op">;</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  v<span class="fl">.2</span> <span class="op">=</span> <span class="bu">id</span> v<span class="fl">.1</span><span class="op">;</span>      <span class="op">//</span> <span class="op">&lt;---</span> .after를 위해 미리 v<span class="fl">.2</span><span class="er">에</span> v<span class="fl">.1</span> 복사</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  jmp .after<span class="op">;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>.after:</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="op">//</span> phi 함수 제거됨.</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="op">//</span> 이 시점에 v<span class="fl">.2</span><span class="er">는</span> 항상 올바른 값을 가짐.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="from_ssa.py-핵심-로직-분석" class="level3">
+<h3 class="anchored" data-anchor-id="from_ssa.py-핵심-로직-분석">from_ssa.py 핵심 로직 분석</h3>
+<p><code>func_from_ssa</code> 함수는 이 알고리즘을 두 단계로 구현합니다.</p>
+<ol type="1">
+<li><strong>1단계: <span class="math inline">\(\phi\)</span> 함수를 찾아 전임자에 복사본 삽입</strong>
+<ul>
+<li>모든 블록을 순회하며 <code>op: 'phi'</code>인 명령어를 찾습니다.</li>
+<li><span class="math inline">\(\phi\)</span> 명령어를 찾으면, <code>instr['labels']</code> (전임자 블록 리스트)와 <code>instr['args']</code> (가져올 변수 리스트)를 순회합니다.</li>
+<li>각 <code>(label, var)</code> 쌍에 대해:
+<ul>
+<li><code>pred = blocks[label]</code>: <code>label</code> 이름으로 전임자 블록(<code>pred</code>)을 찾습니다.</li>
+<li><code>pred.insert(-1, ...)</code>: <code>pred</code> 블록의 마지막 명령어(종결자) 바로 앞(<code>-1</code> 위치)에 <code>id</code> (복사) 명령어를 삽입합니다. ( <code>{'op': 'id', 'args': [var], 'dest': dest}</code> )</li>
+</ul></li>
+</ul></li>
+<li><strong>2단계: <span class="math inline">\(\phi\)</span> 함수 제거</strong>
+<ul>
+<li>모든 <span class="math inline">\(\phi\)</span> 함수에 대한 복사본 삽입이 완료된 후, 다시 블록들을 순회하며 <code>op: 'phi'</code>인 모든 명령어를 <strong>제거(filter out)</strong>합니다.</li>
+</ul></li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> func_from_ssa(func):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    blocks <span class="op">=</span> block_map(form_blocks(func[<span class="st">'instrs'</span>]))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (add_entry, add_terminators) ...</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 1단계: 전임자 블록에 'id' (복사) 명령어 삽입</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> block <span class="kw">in</span> blocks.values():</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> instr <span class="kw">in</span> block:</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> instr.get(<span class="st">'op'</span>) <span class="op">==</span> <span class="st">'phi'</span>:</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                dest <span class="op">=</span> instr[<span class="st">'dest'</span>]</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>                <span class="cf">for</span> i, label <span class="kw">in</span> <span class="bu">enumerate</span>(instr[<span class="st">'labels'</span>]):</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>                    var <span class="op">=</span> instr[<span class="st">'args'</span>][i]</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>                    pred <span class="op">=</span> blocks[label]</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>                    pred.insert(<span class="op">-</span><span class="dv">1</span>, { <span class="co"># 종결자(-1) 앞에 복사본 삽입</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>                        <span class="st">'op'</span>: <span class="st">'id'</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>                        <span class="st">'type'</span>: instr[<span class="st">'type'</span>],</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>                        <span class="st">'args'</span>: [var],</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>                        <span class="st">'dest'</span>: dest,</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>                    })</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 2단계: 현재 블록에서 모든 phi 명령어 제거</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>        new_block <span class="op">=</span> [i <span class="cf">for</span> i <span class="kw">in</span> block <span class="cf">if</span> i.get(<span class="st">'op'</span>) <span class="op">!=</span> <span class="st">'phi'</span>]</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>        block[:] <span class="op">=</span> new_block</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    func[<span class="st">'instrs'</span>] <span class="op">=</span> reassemble(blocks)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/dragon6217\.github\.io\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

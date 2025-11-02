@@ -1,9 +1,11 @@
 [
   {
-    "listing": "/posts/cs/index.html",
+    "listing": "/posts/cs/compiler/index.html",
     "items": [
-      "/posts/cs/optimization/index.html",
-      "/posts/cs/shor-algorithm/index.html"
+      "/posts/cs/compiler/1-cfg/index.html",
+      "/posts/cs/compiler/2-ssa/index.html",
+      "/posts/cs/compiler/3-optimization/index.html",
+      "/posts/cs/compiler/4-toolkit/index.html"
     ]
   }
 ]

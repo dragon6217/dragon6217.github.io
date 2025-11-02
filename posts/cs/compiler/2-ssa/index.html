@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2025-11-02">
+<meta name="description" content="CFG를 기반으로 ’지배자(Dominator)’와 ’지배 경계(Dominance Frontier)’를 계산하는 방법을 알아보고, 이를 활용해 Phi(φ) 함수를 삽입하여 코드를 SSA(Static Single Assignment) 폼으로 변환하는 핵심 과정을 분석합니다.">
+
+<title>컴파일러 백엔드 시리즈 2부: SSA 폼 변환과 지배자 트리 – dragon6217.github.io</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../../">
+<script src="../../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../../site_libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../../site_libs/bootstrap/bootstrap-0b37c64f34216b628666a8dac638b53b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../../../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../../../index.html">
+    <span class="navbar-title">dragon6217.github.io</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/cs/index.html"> 
+<span class="menu-text">Computer Science</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/math/index.html"> 
+<span class="menu-text">Mathematics</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/dragon6217"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#지배자-분석-반드시-거치는-길-찾기" id="toc-지배자-분석-반드시-거치는-길-찾기" class="nav-link active" data-scroll-target="#지배자-분석-반드시-거치는-길-찾기">4. 지배자 분석: “반드시 거치는 길” 찾기</a>
+  <ul class="collapse">
+  <li><a href="#지배자-관계-계산-get_dom" id="toc-지배자-관계-계산-get_dom" class="nav-link" data-scroll-target="#지배자-관계-계산-get_dom">1. 지배자 관계 계산 (<code>get_dom</code>)</a></li>
+  </ul></li>
+  <li><a href="#지배자-트리-dominator-tree" id="toc-지배자-트리-dominator-tree" class="nav-link" data-scroll-target="#지배자-트리-dominator-tree">2. 지배자 트리 (Dominator Tree)</a>
+  <ul class="collapse">
+  <li><a href="#즉시-지배자-immediate-dominator-idom" id="toc-즉시-지배자-immediate-dominator-idom" class="nav-link" data-scroll-target="#즉시-지배자-immediate-dominator-idom">즉시 지배자 (Immediate Dominator, idom)</a></li>
+  </ul></li>
+  <li><a href="#지배-경계-dominance-frontier" id="toc-지배-경계-dominance-frontier" class="nav-link" data-scroll-target="#지배-경계-dominance-frontier">3. 지배 경계 (Dominance Frontier)</a>
+  <ul class="collapse">
+  <li><a href="#코드-해설-dom_fronts" id="toc-코드-해설-dom_fronts" class="nav-link" data-scroll-target="#코드-해설-dom_fronts">코드 해설 (dom_fronts)</a></li>
+  </ul></li>
+  <li><a href="#ssa-폼-변환-phi-함수와-변수-이름-변경" id="toc-ssa-폼-변환-phi-함수와-변수-이름-변경" class="nav-link" data-scroll-target="#ssa-폼-변환-phi-함수와-변수-이름-변경">5. SSA 폼 변환: <span class="math inline">\(\phi\)</span> 함수와 변수 이름 변경</a>
+  <ul class="collapse">
+  <li><a href="#단계-phi-함수-위치-선정-get_phis" id="toc-단계-phi-함수-위치-선정-get_phis" class="nav-link" data-scroll-target="#단계-phi-함수-위치-선정-get_phis">1단계: <span class="math inline">\(\phi\)</span> 함수 위치 선정 (get_phis)</a></li>
+  <li><a href="#단계-변수-이름-변경-ssa_rename" id="toc-단계-변수-이름-변경-ssa_rename" class="nav-link" data-scroll-target="#단계-변수-이름-변경-ssa_rename">2단계: 변수 이름 변경 (ssa_rename)</a></li>
+  </ul></li>
+  <li><a href="#ssa-폼-검증하기-is_ssa" id="toc-ssa-폼-검증하기-is_ssa" class="nav-link" data-scroll-target="#ssa-폼-검증하기-is_ssa">6. SSA 폼 검증하기 (is_ssa)</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">컴파일러 백엔드 시리즈 2부: SSA 폼 변환과 지배자 트리</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Compiler</div>
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">Bril</div>
+    <div class="quarto-category">SSA</div>
+    <div class="quarto-category">Dominator</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    CFG를 기반으로 ’지배자(Dominator)’와 ’지배 경계(Dominance Frontier)’를 계산하는 방법을 알아보고, 이를 활용해 Phi(φ) 함수를 삽입하여 코드를 SSA(Static Single Assignment) 폼으로 변환하는 핵심 과정을 분석합니다.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 2, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>1부에서는 Bril 코드를 기본 블록으로 나누어 <strong>제어 흐름 그래프(CFG)</strong>를 구축했습니다. CFG가 “어디로 갈 수 있는가”에 대한 <em>흐름</em>을 보여준다면, 2부에서는 “어떤 노드를 실행하기 위해 <strong>반드시</strong> 먼저 거쳐야 하는 노드가 무엇인가”에 대한 <em>구조</em>를 분석합니다.</p>
+<p>이것이 바로 <strong>지배자(Dominator)</strong> 분석이며, SSA 폼 변환의 심장부입니다.</p>
+<section id="지배자-분석-반드시-거치는-길-찾기" class="level2">
+<h2 class="anchored" data-anchor-id="지배자-분석-반드시-거치는-길-찾기">4. 지배자 분석: “반드시 거치는 길” 찾기</h2>
+<blockquote class="blockquote">
+<p><strong>지배 (Dominance)란?</strong> CFG에서 노드 <span class="math inline">\(A\)</span>가 노드 <span class="math inline">\(B\)</span>를 <strong>지배(dominates)</strong>한다는 것은, 프로그램의 진입(entry) 노드에서 <span class="math inline">\(B\)</span>로 가는 <strong>모든 경로</strong>가 <strong>반드시</strong> <span class="math inline">\(A\)</span>를 거쳐야 함을 의미합니다. (이때 <span class="math inline">\(A\)</span>는 <span class="math inline">\(B\)</span> 자신일 수도 있습니다.) * <span class="math inline">\(LaTeX\)</span> 표기: <span class="math inline">\(A \text{ dom } B\)</span> * <strong>직관적 의미:</strong> <span class="math inline">\(B\)</span>를 실행했다면, 그전에 <span class="math inline">\(A\)</span>는 <em>무조건</em> 실행되었음이 보장된다. * <strong>예시:</strong> 루프(loop)의 헤더(header) 블록은 루프 본체(body)의 모든 블록을 지배합니다.</p>
+</blockquote>
+<p><code>dom.py</code> 스크립트는 이 지배 관계를 계산하고, 이를 바탕으로 SSA 변환에 필수적인 두 가지 핵심 자료구조를 구축합니다.</p>
+<ol type="1">
+<li><strong>지배자 (Dominators) / <code>get_dom</code></strong>: 각 노드 <span class="math inline">\(n\)</span>에 대해, <span class="math inline">\(n\)</span>을 지배하는 모든 노드의 집합 <span class="math inline">\(Dom(n)\)</span>을 계산합니다.</li>
+<li><strong>지배 경계 (Dominance Frontier) / <code>dom_fronts</code></strong>: <span class="math inline">\(\phi\)</span> 함수를 어디에 삽입할지 알려주는 핵심 정보입니다.</li>
+</ol>
+<section id="지배자-관계-계산-get_dom" class="level3">
+<h3 class="anchored" data-anchor-id="지배자-관계-계산-get_dom">1. 지배자 관계 계산 (<code>get_dom</code>)</h3>
+<p><code>get_dom</code> 함수는 고전적인 <strong>반복적 데이터 흐름 분석(iterative data-flow analysis)</strong> 알고リズム을 사용하여 지배자 집합 <span class="math inline">\(Dom(n)\)</span>을 계산합니다.</p>
+<p>이 알고리즘은 다음의 재귀적인 정의에 기반합니다. <span class="math display">\[Dom(n) = \{n\} \cup \left( \bigcap_{p \in \text{pred}(n)} Dom(p) \right)\]</span></p>
+<ul>
+<li><span class="math inline">\(Dom(n)\)</span>: 노드 <span class="math inline">\(n\)</span>의 지배자 집합</li>
+<li><span class="math inline">\(\text{pred}(n)\)</span>: 노드 <span class="math inline">\(n\)</span>의 모든 <strong>전임자(predecessor)</strong> 노드 집합</li>
+<li>(예외: 진입 노드 <span class="math inline">\(n_0\)</span>의 경우 <span class="math inline">\(Dom(n_0) = \{n_0\}\)</span> 입니다.)</li>
+</ul>
+<section id="코드-해설" class="level4">
+<h4 class="anchored" data-anchor-id="코드-해설">코드 해설</h4>
+<p><code>get_dom</code> 함수는 이 수식을 ’고정점(fixed-point)’에 도달할 때까지 반복 계산합니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_dom(succ, entry):</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    pred <span class="op">=</span> map_inv(succ)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 1. RPO(Reverse Postorder)로 노드 순회 순서 결정 (빠른 수렴을 위함)</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    nodes <span class="op">=</span> <span class="bu">list</span>(<span class="bu">reversed</span>(postorder(succ, entry))) </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 2. 초기화: Dom(n) = {모든 노드} (데이터 흐름 분석의 'Top' 원소)</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    dom <span class="op">=</span> {v: <span class="bu">set</span>(nodes) <span class="cf">for</span> v <span class="kw">in</span> succ}</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 진입 노드의 Dom(entry)는 {entry}여야 하지만,</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 아래 루프의 첫 번째 반복에서 자동으로 그렇게 설정됩니다.</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>        changed <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 3. 모든 노드를 RPO 순서로 순회</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> node <span class="kw">in</span> nodes:</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>            <span class="co"># 4. Meet 연산: pred(node)의 Dom 집합들의 교집합(intersection) 계산</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>            new_dom <span class="op">=</span> intersect(dom[p] <span class="cf">for</span> p <span class="kw">in</span> pred[node])</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>            <span class="co"># 5. Transfer 함수: {n}을 추가</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>            new_dom.add(node)</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>            <span class="co"># 6. 수렴(Convergence) 확인</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> dom[node] <span class="op">!=</span> new_dom:</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>                dom[node] <span class="op">=</span> new_dom</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>                changed <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> changed:</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span>  <span class="co"># 고정점에 도달하면(더 이상 변경이 없으면) 종료</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> dom</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+</section>
+<section id="지배자-트리-dominator-tree" class="level2">
+<h2 class="anchored" data-anchor-id="지배자-트리-dominator-tree">2. 지배자 트리 (Dominator Tree)</h2>
+<p><code>get_dom</code>이 계산한 <span class="math inline">\(Dom(n)\)</span>은 모든 지배자 집합입니다. 하지만 이 관계는 ‘트리’ 구조로 단순화할 수 있습니다.</p>
+<section id="즉시-지배자-immediate-dominator-idom" class="level3">
+<h3 class="anchored" data-anchor-id="즉시-지배자-immediate-dominator-idom">즉시 지배자 (Immediate Dominator, idom)</h3>
+<p>노드 <span class="math inline">\(B\)</span>를 지배하는 노드 <span class="math inline">\(A\)</span>가 <span class="math inline">\(B\)</span>의 즉시 지배자라는 것은, <span class="math inline">\(A\)</span>와 <span class="math inline">\(B\)</span> 사이에 <span class="math inline">\(A\)</span>를 지배하면서 <span class="math inline">\(B\)</span>를 지배하는 다른 노드가 존재하지 않는다는 의미입니다. (즉, <span class="math inline">\(A\)</span>가 <span class="math inline">\(B\)</span>로 가는 길의 ‘마지막’ 지배자입니다.)</p>
+<ul>
+<li>진입 노드를 제외한 모든 노드는 유일한(unique) 즉시 지배자를 가집니다.</li>
+</ul>
+<p>이 <code>idom</code> 관계를 모아 그린 것이 <strong>지배자 트리(Dominator Tree)</strong>입니다. CFG가 복잡한 그래프일지라도, 지배자 트리는 항상 단순한 트리 구조가 됩니다. <code>dom_tree</code> 함수는 <code>get_dom</code>의 결과를 바탕으로 이 <code>idom</code> 관계(부모-자식 관계)를 계산합니다.</p>
+<hr>
+</section>
+</section>
+<section id="지배-경계-dominance-frontier" class="level2">
+<h2 class="anchored" data-anchor-id="지배-경계-dominance-frontier">3. 지배 경계 (Dominance Frontier)</h2>
+<p>드디어 SSA 변환의 가장 핵심적인 개념인 <strong>지배 경계(Dominance Frontier)</strong>입니다.</p>
+<blockquote class="blockquote">
+<p><strong>지배 경계 (Dominance Frontier, DF) 란?</strong></p>
+<p>노드 <span class="math inline">\(A\)</span>의 지배 경계 <span class="math inline">\(DF(A)\)</span>는, <span class="math inline">\(A\)</span>가 지배하는 노드(<span class="math inline">\(A\)</span> 자신 포함)의 후임자이면서, <span class="math inline">\(A\)</span>가 엄격하게(strictly) 지배하지는 않는 노드들의 집합입니다.</p>
+<ul>
+<li><strong>엄격한 지배(Strict Dominance):</strong> <span class="math inline">\(A \text{ dom } B\)</span> 이고 <span class="math inline">\(A \ne B\)</span> 인 경우.</li>
+<li><strong>직관적 의미:</strong> 변수의 영향력이 <span class="math inline">\(A\)</span>의 ’지배 영역’을 벗어나 처음으로 도달하는 <strong>합류 지점(join point)</strong>입니다.</li>
+</ul>
+</blockquote>
+<p><strong>이것이 왜 중요할까요?</strong></p>
+<p>어떤 블록 <span class="math inline">\(A\)</span>에서 변수 <span class="math inline">\(x\)</span>에 새로운 값이 할당(정의)되었다고 가정해봅시다. 이 <span class="math inline">\(x\)</span>의 값은 <span class="math inline">\(A\)</span>가 지배하는 모든 블록에서 유효합니다. 하지만 <span class="math inline">\(A\)</span>의 ’지배 영역’을 벗어나는 순간(즉, <span class="math inline">\(DF(A)\)</span>에 속하는 블록), 다른 경로에서 온 <span class="math inline">\(x\)</span>의 값과 합쳐져야 합니다.</p>
+<p>따라서 <span class="math inline">\(DF(A)\)</span>는 <span class="math inline">\(\phi\)</span> (phi) 함수가 삽입되어야 할 위치를 정확히 알려줍니다.</p>
+<section id="코드-해설-dom_fronts" class="level3">
+<h3 class="anchored" data-anchor-id="코드-해설-dom_fronts">코드 해설 (dom_fronts)</h3>
+<p><code>dom_fronts</code> 함수는 이 정의를 코드로 정확하게 구현합니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dom_fronts(dom, succ):</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Compute the dominance frontier, given the dominance relation.</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># dom_inv[A] = A가 지배하는 모든 노드 집합</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    dom_inv <span class="op">=</span> map_inv(dom)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    frontiers <span class="op">=</span> {}</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> block <span class="kw">in</span> dom:  <span class="co"># 모든 노드 A (block)에 대해</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Find all successors of dominated blocks.</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        dominated_succs <span class="op">=</span> <span class="bu">set</span>()</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 1. A가 지배하는 모든 노드(dominated)를 찾고,</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> dominated <span class="kw">in</span> dom_inv[block]:</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>            <span class="co"># 2. 그 노드들의 모든 후임자(successors)를 찾는다.</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>            dominated_succs.update(succ[dominated])</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 3. 이 후임자(b)들 중에서,</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>        <span class="co">#    A가 '엄격하게' 지배하지 않는 노드만 필터링한다.</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>        frontiers[block] <span class="op">=</span> [b <span class="cf">for</span> b <span class="kw">in</span> dominated_succs</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>                            <span class="cf">if</span> b <span class="kw">not</span> <span class="kw">in</span> dom_inv[block] <span class="kw">or</span> b <span class="op">==</span> block]</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> frontiers</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="ssa-폼-변환-phi-함수와-변수-이름-변경" class="level2">
+<h2 class="anchored" data-anchor-id="ssa-폼-변환-phi-함수와-변수-이름-변경">5. SSA 폼 변환: <span class="math inline">\(\phi\)</span> 함수와 변수 이름 변경</h2>
+<p>이제 우리는 CFG, 지배자 트리, 그리고 지배 경계라는 재료를 모두 확보했습니다. 이 재료들을 사용해 IR을 SSA (Static Single Assignment) 폼으로 변환할 차례입니다.</p>
+<blockquote class="blockquote">
+<p><strong>SSA (Static Single Assignment)란?</strong> 모든 변수(variable)가 프로그램 텍스트 상에서 <strong>단 한 번만 할당(assignment)</strong>되도록 보장하는 IR의 한 형태입니다. * 예시: <code>x = 1; x = x + 1;</code> * SSA 변환: <code>x.0 = 1; x.1 = add x.0 1;</code></p>
+</blockquote>
+<p>이 “단일 할당” 속성 덕분에, 변수의 ‘정의(definition)’와 ’사용(use)’ 관계가 매우 명확해져, 다양한 최적화를 강력하고 효율적으로 만듭니다.</p>
+<p>이 변환은 두 단계 알고리즘으로 수행됩니다.</p>
+<ol type="1">
+<li><strong><span class="math inline">\(\phi\)</span> 함수 삽입:</strong> 지배 경계(DF)를 이용해 <span class="math inline">\(\phi\)</span> 함수가 필요한 위치를 찾습니다.</li>
+<li><strong>변수 이름 변경 (Renaming):</strong> 지배자 트리(Dominator Tree)를 순회하며 모든 변수의 정의와 사용을 <code>x.0</code>, <code>x.1</code> 등으로 다시 명명합니다.</li>
+</ol>
+<section id="단계-phi-함수-위치-선정-get_phis" class="level3">
+<h3 class="anchored" data-anchor-id="단계-phi-함수-위치-선정-get_phis">1단계: <span class="math inline">\(\phi\)</span> 함수 위치 선정 (get_phis)</h3>
+<p><code>get_phis</code> 함수는 <code>dom_fronts</code>가 계산한 지배 경계를 사용해 <span class="math inline">\(\phi\)</span> 함수가 필요한 위치를 찾습니다.</p>
+<ul>
+<li><span class="math inline">\(v\)</span>에 대한 정의가 블록 <span class="math inline">\(D\)</span>에서 발생할 때, <span class="math inline">\(DF(D)\)</span>에 속하는 모든 블록은 <span class="math inline">\(v\)</span>에 대한 <span class="math inline">\(\phi\)</span> 함수가 필요할 수 있는 ’합류 지점’입니다.</li>
+<li><code>get_phis</code>는 이 과정을 <span class="math inline">\(\phi\)</span> 함수 자신이 또 다른 정의가 되는 것까지 고려하여, 새로운 <span class="math inline">\(\phi\)</span> 함수가 더 이상 추가되지 않을 때까지 반복적으로(Iterated Dominance Frontier) 수행합니다.</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_phis(blocks, df, defs):</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Find where to insert phi-nodes in the blocks.</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">    ...</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    phis <span class="op">=</span> {b: <span class="bu">set</span>() <span class="cf">for</span> b <span class="kw">in</span> blocks}</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> v, v_defs <span class="kw">in</span> defs.items():</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        v_defs_list <span class="op">=</span> <span class="bu">list</span>(v_defs)  <span class="co"># W = 리스트 (워크리스트)</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> d <span class="kw">in</span> v_defs_list:  <span class="co"># W에서 하나씩 꺼내는 동안 (W가 증가 가능)</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> block <span class="kw">in</span> df[d]:  <span class="co"># d의 지배 경계에 속하는 모든 블록</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> v <span class="kw">not</span> <span class="kw">in</span> phis[block]:</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>                    <span class="co"># 이 블록에 v에 대한 phi 함수가 필요하다고 표시</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>                    phis[block].add(v)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>                    <span class="co"># phi 함수 자체가 새로운 정의이므로,</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>                    <span class="co"># 이 블록(block)도 워크리스트에 추가</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">if</span> block <span class="kw">not</span> <span class="kw">in</span> v_defs_list:</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>                        v_defs_list.append(block)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> phis</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="단계-변수-이름-변경-ssa_rename" class="level3">
+<h3 class="anchored" data-anchor-id="단계-변수-이름-변경-ssa_rename">2단계: 변수 이름 변경 (ssa_rename)</h3>
+<p><code>ssa_rename</code> 함수는 <strong>지배자 트리를 전위 순회(pre-order traversal)</strong>하는 재귀 알고리즘을 사용해 실제 변수 이름을 <code>v.0</code>, <code>v.1</code> 등으로 변경합니다.</p>
+<ul>
+<li>각 변수명(예: ‘x’)마다, 현재 유효한 이름(예: ‘x.3’)을 저장하는 스택을 유지합니다.</li>
+<li><strong>지배자 트리를 순회하는 이유:</strong> 트리를 따라 내려갈 때(즉, <span class="math inline">\(A\)</span>에서 <span class="math inline">\(A\)</span>가 지배하는 <span class="math inline">\(B\)</span>로 이동할 때), 부모(<span class="math inline">\(A\)</span>)에서 정의된 변수 버전이 자식(<span class="math inline">\(B\)</span>)에서도 유효함이 보장됩니다.</li>
+</ul>
+<p><code>_rename(block)</code> 함수의 핵심 로직은 다음과 같습니다.</p>
+<ol type="1">
+<li><strong>스택 백업:</strong> 현재 스택 상태를 <code>old_stack</code>에 저장합니다.</li>
+<li><strong><span class="math inline">\(\phi\)</span> 함수 정의:</strong> 현재 블록의 <span class="math inline">\(\phi\)</span> 함수 목적지(<code>dest</code>) 이름을 새로 만듭니다(예: <code>x.4</code>). 이 새 이름을 스택에 푸시합니다.</li>
+<li><strong>일반 명령어 순회:</strong>
+<ul>
+<li><strong>사용(args):</strong> 명령어의 인자는 스택의 맨 위(<code>stack[arg][0]</code>) 이름으로 교체합니다.</li>
+<li><strong>정의(dest):</strong> 명령어의 목적지(<code>dest</code>)는 새 이름을 만들고(예: <code>v.1</code>), 스택에 푸시합니다.</li>
+</ul></li>
+<li><strong>후임자(<span class="math inline">\(\phi\)</span>) 인자 채우기:</strong> CFG의 후임자(successor) 블록에 있는 <span class="math inline">\(\phi\)</span> 함수의 인자를 현재 스택의 맨 위 이름으로 채워줍니다.</li>
+<li><strong>재귀 호출:</strong> <em>지배자 트리의 자식(child)</em>에 대해 <code>_rename(b)</code>를 재귀 호출합니다.</li>
+<li><strong>스택 복원:</strong> <code>old_stack</code>을 사용해 스택을 재귀 호출 이전 상태로 되돌립니다. (형제 노드에게 영향을 주지 않기 위함)</li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ssa_rename(blocks, phis, succ, domtree, args):</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    stack <span class="op">=</span> defaultdict(<span class="bu">list</span>, {v: [v] <span class="cf">for</span> v <span class="kw">in</span> args}) <span class="co"># var -&gt; [v.2, v.1, v.0]</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (phi_args, phi_dests, counters 초기화) ...</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _push_fresh(var):</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        fresh <span class="op">=</span> <span class="st">'</span><span class="sc">{}</span><span class="st">.</span><span class="sc">{}</span><span class="st">'</span>.<span class="bu">format</span>(var, counters[var])</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        counters[var] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        stack[var].insert(<span class="dv">0</span>, fresh)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> fresh</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _rename(block):</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 1. 스택 상태 저장</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        old_stack <span class="op">=</span> {k: <span class="bu">list</span>(v) <span class="cf">for</span> k, v <span class="kw">in</span> stack.items()}</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 2. 이 블록의 phi-node 목적지(dest) 이름 변경</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> p <span class="kw">in</span> phis[block]:</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>            phi_dests[block][p] <span class="op">=</span> _push_fresh(p)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 3. 일반 명령어 순회 (사용 -&gt; 정의 순)</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> instr <span class="kw">in</span> blocks[block]:</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="st">'args'</span> <span class="kw">in</span> instr:</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>                instr[<span class="st">'args'</span>] <span class="op">=</span> [stack[arg][<span class="dv">0</span>] <span class="cf">for</span> arg <span class="kw">in</span> instr[<span class="st">'args'</span>]]</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="st">'dest'</span> <span class="kw">in</span> instr:</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>                instr[<span class="st">'dest'</span>] <span class="op">=</span> _push_fresh(instr[<span class="st">'dest'</span>])</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 4. 후임자(successor) 블록의 phi-node 인자(arg) 채우기</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> succ[block]:</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> p <span class="kw">in</span> phis[s]:</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> stack[p]:</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>                    phi_args[s][p].append((block, stack[p][<span class="dv">0</span>]))</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>                <span class="co"># ... (undefined 처리) ...</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 5. 지배자 트리의 자식 노드 재귀 방문</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> b <span class="kw">in</span> <span class="bu">sorted</span>(domtree[block]):</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>            _rename(b)</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 6. 이 블록에서 정의한 이름들을 스택에서 팝 (상태 복원)</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        stack.clear()</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>        stack.update(old_stack)</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    entry <span class="op">=</span> <span class="bu">list</span>(blocks.keys())[<span class="dv">0</span>]</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    _rename(entry)</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (결과 반환) ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="ssa-폼-검증하기-is_ssa" class="level2">
+<h2 class="anchored" data-anchor-id="ssa-폼-검증하기-is_ssa">6. SSA 폼 검증하기 (is_ssa)</h2>
+<p><code>to_ssa.py</code>의 변환은 매우 복잡합니다. 이 변환이 성공했는지, 그 결과물이 SSA의 핵심 속성을 만족하는지 어떻게 보장할 수 있을까요? <code>is_ssa.py</code> 스크립트는 이 변환을 검증하는 간단한 유틸리티입니다.</p>
+<ul>
+<li><strong>SSA의 핵심 정의:</strong> 모든 변수는 함수 내의 텍스트에서 단 한 번만 할당(정의)되어야 합니다.</li>
+</ul>
+<p><code>is_ssa</code> 함수는 <code>assigned</code>라는 <strong>집합(set)</strong>을 사용해, 함수 전체를 선형 스캔하며 ‘dest’ 키를 가진 변수명이 이미 <code>assigned</code> 집합에 있는지(즉, 중복 정의되었는지) 검사합니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> is_ssa(bril):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Check whether a Bril program is in SSA form.</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> func <span class="kw">in</span> bril[<span class="st">'functions'</span>]:</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        assigned <span class="op">=</span> <span class="bu">set</span>()</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> instr <span class="kw">in</span> func[<span class="st">'instrs'</span>]:</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="st">'dest'</span> <span class="kw">in</span> instr:</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> instr[<span class="st">'dest'</span>] <span class="kw">in</span> assigned:</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                    <span class="co"># This variable was already assigned to. Not SSA.</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">return</span> <span class="va">False</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>                <span class="cf">else</span>:</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>                    <span class="co"># This is the first assignment. Record it.</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>                    assigned.add(instr[<span class="st">'dest'</span>])</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># No variable was assigned to more than once.</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="va">True</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/dragon6217\.github\.io\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

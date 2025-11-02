@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2025-11-02">
+<meta name="description" content="SSA 파이프라인의 기반이 되는 ‘범용 데이터 흐름 분석(Dataflow Analysis)’ 프레임워크와, 최적화 성능을 측정하는 벤치마킹 유틸리티 등 프로젝트를 지원하는 핵심 툴킷을 분석합니다.">
+
+<title>컴파일러 백엔드 시리즈 4부(부록): 컴파일러 툴킷 – dragon6217.github.io</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../../../">
+<script src="../../../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../../../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../../../site_libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../../../site_libs/bootstrap/bootstrap-0b37c64f34216b628666a8dac638b53b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../../../styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../../../index.html" class="navbar-brand navbar-brand-logo">
+    </a>
+    <a class="navbar-brand" href="../../../../index.html">
+    <span class="navbar-title">dragon6217.github.io</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/cs/index.html"> 
+<span class="menu-text">Computer Science</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../../../posts/math/index.html"> 
+<span class="menu-text">Mathematics</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/dragon6217"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#심화-학습-일반적인-데이터-흐름-분석dataflow-analysis-프레임워크" id="toc-심화-학습-일반적인-데이터-흐름-분석dataflow-analysis-프레임워크" class="nav-link active" data-scroll-target="#심화-학습-일반적인-데이터-흐름-분석dataflow-analysis-프레임워크">10. 심화 학습: 일반적인 데이터 흐름 분석(Dataflow Analysis) 프레임워크</a>
+  <ul class="collapse">
+  <li><a href="#analysis-추상화" id="toc-analysis-추상화" class="nav-link" data-scroll-target="#analysis-추상화">1. ‘Analysis’ 추상화</a></li>
+  <li><a href="#df_worklist-알고리즘" id="toc-df_worklist-알고리즘" class="nav-link" data-scroll-target="#df_worklist-알고리즘">2. df_worklist 알고리즘</a></li>
+  <li><a href="#구현된-분석-예제" id="toc-구현된-분석-예제" class="nav-link" data-scroll-target="#구현된-분석-예제">3. 구현된 분석 예제</a></li>
+  </ul></li>
+  <li><a href="#최적화-성능-측정-normalize.py" id="toc-최적화-성능-측정-normalize.py" class="nav-link" data-scroll-target="#최적화-성능-측정-normalize.py">11. 최적화 성능 측정 (normalize.py)</a>
+  <ul class="collapse">
+  <li><a href="#normalize.py-핵심-로직-분석" id="toc-normalize.py-핵심-로직-분석" class="nav-link" data-scroll-target="#normalize.py-핵심-로직-분석">normalize.py 핵심 로직 분석</a></li>
+  </ul></li>
+  <li><a href="#공통-유틸리티-함수-util.py" id="toc-공통-유틸리티-함수-util.py" class="nav-link" data-scroll-target="#공통-유틸리티-함수-util.py">12. 공통 유틸리티 함수 (util.py)</a>
+  <ul class="collapse">
+  <li><a href="#flattenll" id="toc-flattenll" class="nav-link" data-scroll-target="#flattenll">1. flatten(ll)</a></li>
+  <li><a href="#freshseed-names" id="toc-freshseed-names" class="nav-link" data-scroll-target="#freshseed-names">2. fresh(seed, names)</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">컴파일러 백엔드 시리즈 4부(부록): 컴파일러 툴킷</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Compiler</div>
+    <div class="quarto-category">Python</div>
+    <div class="quarto-category">Dataflow</div>
+    <div class="quarto-category">Bril</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    SSA 파이프라인의 기반이 되는 ‘범용 데이터 흐름 분석(Dataflow Analysis)’ 프레임워크와, 최적화 성능을 측정하는 벤치마킹 유틸리티 등 프로젝트를 지원하는 핵심 툴킷을 분석합니다.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 2, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>1부에서 3부까지 우리는 CFG 생성, SSA 변환, 최적화, 그리고 SSA 해제로 이어지는 컴파일러 백엔드의 핵심 파이프라인을 구축했습니다.</p>
+<p>이번 4부(부록)에서는 이 파이프라인을 직접 구성하지는 않지만, 그 기반이 되는 핵심 이론 프레임워크와 프로젝트를 보조하는 유용한 툴킷 파일들을 살펴봅니다.</p>
+<section id="심화-학습-일반적인-데이터-흐름-분석dataflow-analysis-프레임워크" class="level2">
+<h2 class="anchored" data-anchor-id="심화-학습-일반적인-데이터-흐름-분석dataflow-analysis-프레임워크">10. 심화 학습: 일반적인 데이터 흐름 분석(Dataflow Analysis) 프레임워크</h2>
+<p>2부의 <code>dom.py</code>에서 지배자(Dominator)를 계산하기 위해 ‘반복적 데이터 흐름 분석’ 알고리즘을 사용했던 것을 기억하시나요? <code>dom.py</code>가 ’지배자 분석’이라는 <strong>특정한(specific)</strong> 목적을 위해 하드코딩된 구현체였다면, <code>df.py</code>는 한발 더 나아가 <strong>어떤 종류의 데이터 흐름 분석이든</strong> 수행할 수 있도록 일반화시킨 강력한 <strong>프레임워크</strong>입니다.</p>
+<blockquote class="blockquote">
+<p><strong>데이터 흐름 분석이란?</strong> CFG를 따라 프로그램의 상태 값(예: “이 변수가 상수인가?”, “이 변수가 나중에 사용되는가?”)이 어떻게 전파되는지 계산하는 정적 분석 기법입니다. 이 분석은 “고정점(fixed-point)”에 도달할 때까지, 즉 더 이상 정보가 갱신되지 않을 때까지 반복적으로 수행됩니다.</p>
+</blockquote>
+<p><code>df.py</code>는 특정 분석에 종속되지 않고, <code>Analysis</code>라는 명세만 넘겨주면 알아서 고정점을 찾아주는 <strong>범용 워크리스트 알고리즘(Worklist Algorithm)</strong>을 제공합니다.</p>
+<section id="analysis-추상화" class="level3">
+<h3 class="anchored" data-anchor-id="analysis-추상화">1. ‘Analysis’ 추상화</h3>
+<p>이 프레임워크의 핵심은 <code>Analysis</code> 네임드튜플(namedtuple)입니다. 어떤 데이터 흐름 분석이든 다음 네 가지 요소로 정의할 수 있다는 아이디어에 기반합니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Analysis <span class="op">=</span> namedtuple(<span class="st">'Analysis'</span>, [<span class="st">'forward'</span>, <span class="st">'init'</span>, <span class="st">'merge'</span>, <span class="st">'transfer'</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><strong><code>forward</code> (방향):</strong> <code>True</code>이면 순방향(Forward) 분석 (진입 <span class="math inline">\(\rightarrow\)</span> 종료), <code>False</code>이면 역방향(Backward) 분석 (종료 <span class="math inline">\(\rightarrow\)</span> 진입)을 수행합니다.</li>
+<li><strong><code>init</code> (초기값):</strong> 각 블록의 <code>in</code> 또는 <code>out</code> 상태가 처음 시작할 때 가지는 값입니다. (Lattice의 <span class="math inline">\(\top\)</span> 또는 <span class="math inline">\(\bot\)</span> 원소)</li>
+<li><strong><code>merge</code> (병합 함수):</strong> 여러 경로가 합쳐지는 지점(예: if문 다음 블록)에서 각 경로의 상태 값을 어떻게 합칠 것인지 정의합니다. (Meet 연산자 <span class="math inline">\(\cap\)</span> 또는 <span class="math inline">\(\cup\)</span>)</li>
+<li><strong><code>transfer</code> (전달 함수):</strong> 특정 블록을 통과할 때, 블록의 <code>in</code> 상태가 어떻게 <code>out</code> 상태로 변환되는지 정의합니다. ( <span class="math inline">\(f(x)\)</span> )</li>
+</ul>
+</section>
+<section id="df_worklist-알고리즘" class="level3">
+<h3 class="anchored" data-anchor-id="df_worklist-알고리즘">2. df_worklist 알고리즘</h3>
+<p>이 함수가 바로 데이터 흐름 분석 엔진입니다. 모든 블록을 무작정 반복하는 대신, 상태 값에 변경이 생긴 블록의 후임자(또는 전임자)만을 <code>worklist</code>라는 큐에 넣어 효율적으로 고정점을 찾습니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> df_worklist(blocks, analysis):</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... ( preds, succs 계산, 방향 설정 ) ...</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 1. 초기화</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    in_ <span class="op">=</span> {first_block: analysis.init}</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    out <span class="op">=</span> {node: analysis.init <span class="cf">for</span> node <span class="kw">in</span> blocks}</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    worklist <span class="op">=</span> <span class="bu">list</span>(blocks.keys())</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> worklist:</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        node <span class="op">=</span> worklist.pop(<span class="dv">0</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 2. Merge: 모든 전임자(predecessor)들의 out 값을 병합</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        inval <span class="op">=</span> analysis.merge(out[n] <span class="cf">for</span> n <span class="kw">in</span> in_edges[node])</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>        in_[node] <span class="op">=</span> inval</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 3. Transfer: 블록을 통과시키며 out 값을 계산</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>        outval <span class="op">=</span> analysis.transfer(blocks[node], inval)</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 4. 고정점 확인: out 값이 변경되었는지 확인</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> outval <span class="op">!=</span> out[node]:</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>            out[node] <span class="op">=</span> outval</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>            <span class="co"># 변경되었다면, 이 노드의 후임자(successor)들을 worklist에 추가</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>            worklist <span class="op">+=</span> out_edges[node]</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (결과 반환) ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> normalize():</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (CSV 읽기) ...</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 1. Get normalization baselines.</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    baselines <span class="op">=</span> {</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        row[<span class="st">'benchmark'</span>]: <span class="bu">int</span>(row[<span class="st">'result'</span>])</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> row <span class="kw">in</span> in_data</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> row[<span class="st">'run'</span>] <span class="op">==</span> <span class="st">'baseline'</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 2. Write output CSV back out.</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (writer 생성) ...</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    ratios <span class="op">=</span> defaultdict(<span class="bu">list</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> row <span class="kw">in</span> in_data:</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 3. Calculate ratio against baseline</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>        ratio <span class="op">=</span> <span class="bu">int</span>(row[<span class="st">'result'</span>]) <span class="op">/</span> baselines[row[<span class="st">'benchmark'</span>]]</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>        ratios[row[<span class="st">'run'</span>]].append(ratio)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>        row[<span class="st">'result'</span>] <span class="op">=</span> ratio</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>        writer.writerow(row)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 4. Print stats.</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> run, rs <span class="kw">in</span> ratios.items():</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> name, func <span class="kw">in</span> STATS.items():</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>                <span class="st">'</span><span class="sc">{}</span><span class="st">(</span><span class="sc">{}</span><span class="st">) = </span><span class="sc">{:.2f}</span><span class="st">'</span>.<span class="bu">format</span>(name, run, func(rs)),</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>                <span class="bu">file</span><span class="op">=</span>sys.stderr,</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>            )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="구현된-분석-예제" class="level3">
+<h3 class="anchored" data-anchor-id="구현된-분석-예제">3. 구현된 분석 예제</h3>
+<p><code>df.py</code>는 이 프레임워크를 사용한 두 가지 고전적인 분석을 예제로 제공합니다.</p>
+<section id="live-활성-변수-분석-live-variable-analysis" class="level4">
+<h4 class="anchored" data-anchor-id="live-활성-변수-분석-live-variable-analysis">1. ‘live’: 활성 변수 분석 (Live Variable Analysis)</h4>
+<ul>
+<li><strong>목적:</strong> 어떤 변수가 “활성(live)” 상태인지, 즉 “현재 지점에서 정의된 값이 미래에 사용될 가능성이 있는지”를 파악합니다. (주로 레지스터 할당, 정교한 죽은 코드 제거에 사용됩니다.)</li>
+<li><strong>특징:</strong> 역방향(Backward) 분석입니다 (<code>forward: False</code>). 프로그램의 끝에서부터 거꾸로 분석을 수행합니다.</li>
+<li><strong>전달 함수:</strong> <span class="math inline">\(LiveIn(n) = Use(n) \cup (LiveOut(n) - Gen(n))\)</span>
+<ul>
+<li><span class="math inline">\(Use(n)\)</span>: 이 블록에서 (정의되기 전에) 사용되는 변수.</li>
+<li><span class="math inline">\(Gen(n)\)</span>: 이 블록에서 정의되는(덮어쓰이는) 변수.</li>
+</ul></li>
+</ul>
+</section>
+<section id="cprop-상수-전파-constant-propagation" class="level4">
+<h4 class="anchored" data-anchor-id="cprop-상수-전파-constant-propagation">2. ‘cprop’: 상수 전파 (Constant Propagation)</h4>
+<ul>
+<li><strong>목적:</strong> “어떤 변수가 항상 특정 상수 값을 가지는가?”를 파악합니다.</li>
+<li><strong>특징:</strong> 순방향(Forward) 분석입니다 (<code>forward: True</code>).</li>
+<li><strong>상태 값:</strong> <code>{ 'v': 5, 'x': '?', 'z': 10 }</code>
+<ul>
+<li><code>5</code>: 이 지점에서 <code>v</code>는 항상 5입니다.</li>
+<li><code>'?'</code>: 이 지점에서 <code>x</code>는 상수가 아니거나, 여러 경로에서 온 상수 값이 다릅니다 (Lattice의 <span class="math inline">\(\top\)</span>).</li>
+</ul></li>
+<li><strong>Merge 함수 (cprop_merge):</strong>
+<ul>
+<li><code>merge({v: 5}, {v: 5})</code> <span class="math inline">\(\rightarrow\)</span> <code>{v: 5}</code></li>
+<li><code>merge({v: 5}, {v: 7})</code> <span class="math inline">\(\rightarrow\)</span> <code>{v: '?'}</code></li>
+</ul></li>
+</ul>
+<hr>
+</section>
+</section>
+</section>
+<section id="최적화-성능-측정-normalize.py" class="level2">
+<h2 class="anchored" data-anchor-id="최적화-성능-측정-normalize.py">11. 최적화 성능 측정 (normalize.py)</h2>
+<p>3부에서 <code>lvn.py</code> (중복 연산 제거)와 <code>tdce.py</code> (죽은 코드 제거) 같은 최적화 패스를 구현했습니다. 그렇다면 이 최적화들이 과연 “얼마나” 코드를 향상시켰을까요?</p>
+<p>이를 확인하려면 <strong>벤치마킹(Benchmarking)</strong>이 필요합니다. <code>normalize.py</code>는 이 벤치마킹 결과를 처리해주는 유틸리티입니다.</p>
+<ul>
+<li><code>normalize.py</code>는 각 벤치마크의 여러 실행 결과(예: 총 명령어 수)가 담긴 CSV 파일을 입력받습니다.</li>
+</ul>
+<section id="normalize.py-핵심-로직-분석" class="level3">
+<h3 class="anchored" data-anchor-id="normalize.py-핵심-로직-분석">normalize.py 핵심 로직 분석</h3>
+<p>이 스크립트의 목적은 “절대적인 명령어 수” (예: 150개)를 “상대적인 성능 비율” (예: 0.85배)로 변환하는 것입니다.</p>
+<ol type="1">
+<li><strong>CSV 읽기:</strong> 벤치마킹 결과 CSV를 읽습니다. (예상 형식: <code>benchmark, run, result</code>)</li>
+<li><strong>‘baseline’ 찾기:</strong> <code>run == 'baseline'</code>인 행을 찾아, 각 벤치마크의 기준 성능(<code>baselines[...] = int(row['result'])</code>)을 맵에 저장합니다.</li>
+<li><strong>정규화(Normalize):</strong>
+<ul>
+<li>CSV를 다시 순회하며 각 행(<code>row</code>)의 <code>result</code>를 <code>baseline</code>의 <code>result</code>로 나눕니다.</li>
+<li><code>ratio = int(row['result']) / baselines[row['benchmark']]</code></li>
+<li>(예: <code>lvn_run</code>의 <code>result</code>가 85, <code>baseline</code>이 100이었다면 <code>ratio = 0.85</code>)</li>
+</ul></li>
+<li><strong>통계 출력:</strong>
+<ul>
+<li>각 <code>run</code> (예: <code>lvn_only</code>)별로 모든 <code>ratio</code>의 <strong>기하 평균(geometric_mean)</strong>을 계산하여 출력합니다.</li>
+</ul></li>
+</ol>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> normalize():</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (CSV 읽기) ...</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 1. Get normalization baselines.</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    baselines <span class="op">=</span> {</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        row[<span class="st">'benchmark'</span>]: <span class="bu">int</span>(row[<span class="st">'result'</span>])</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> row <span class="kw">in</span> in_data</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> row[<span class="st">'run'</span>] <span class="op">==</span> <span class="st">'baseline'</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 2. Write output CSV back out.</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ... (writer 생성) ...</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    ratios <span class="op">=</span> defaultdict(<span class="bu">list</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> row <span class="kw">in</span> in_data:</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 3. Calculate ratio against baseline</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        ratio <span class="op">=</span> <span class="bu">int</span>(row[<span class="st">'result'</span>]) <span class="op">/</span> baselines[row[<span class="st">'benchmark'</span>]]</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        ratios[row[<span class="st">'run'</span>]].append(ratio)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        row[<span class="st">'result'</span>] <span class="op">=</span> ratio</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        writer.writerow(row)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 4. Print stats.</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> run, rs <span class="kw">in</span> ratios.items():</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> name, func <span class="kw">in</span> STATS.items():</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>                <span class="st">'</span><span class="sc">{}</span><span class="st">(</span><span class="sc">{}</span><span class="st">) = </span><span class="sc">{:.2f}</span><span class="st">'</span>.<span class="bu">format</span>(name, run, func(rs)),</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>                <span class="bu">file</span><span class="op">=</span>sys.stderr,</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>            )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<blockquote class="blockquote">
+<p>이 스크립트를 통해 “LVN 최적화를 켰더니, 기준(baseline) 대비 명령어 수가 평균 85% 수준(기하 평균 0.85)이 되었다”와 같은 정량적인 결론을 내릴 수 있습니다.</p>
+</blockquote>
+<hr>
+</section>
+</section>
+<section id="공통-유틸리티-함수-util.py" class="level2">
+<h2 class="anchored" data-anchor-id="공통-유틸리티-함수-util.py">12. 공통 유틸리티 함수 (util.py)</h2>
+<p>파이프라인 전반에 걸쳐 사용된 몇 가지 편의 함수들이 <code>util.py</code>에 정의되어 있습니다.</p>
+<section id="flattenll" class="level3">
+<h3 class="anchored" data-anchor-id="flattenll">1. flatten(ll)</h3>
+<p><code>reassemble</code> 함수 등에서 여러 기본 블록(리스트의 리스트)을 다시 하나의 긴 명령어 리스트로 합칠 때 사용됩니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> itertools</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flatten(ll):</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Flatten an iterable of iterable to a single list.</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">list</span>(itertools.chain(<span class="op">*</span>ll))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="freshseed-names" class="level3">
+<h3 class="anchored" data-anchor-id="freshseed-names">2. fresh(seed, names)</h3>
+<p><code>cfg.py</code>의 <code>block_map</code> 함수에서 레이블이 없는 <strong>익명 블록(anonymous block)</strong>에 <code>b1</code>, <code>b2</code>와 같이 고유한 이름을 붙여줄 때 사용됩니다.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fresh(seed, names):</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Generate a new name that is not in `names` starting with `seed.</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    i <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        name <span class="op">=</span> seed <span class="op">+</span> <span class="bu">str</span>(i)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> name <span class="kw">not</span> <span class="kw">in</span> names:</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> name</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        i <span class="op">+=</span> <span class="dv">1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/dragon6217\.github\.io\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
