@@ -1,6 +1,6 @@
 ---
 title: "L10. Basics of Quantum Computing"
-description: "양자 회로가 고전 회로보다 강력한지(QC >= CC) 탐구합니다. 고전 연산의 비가역성(irreversibility) 문제를 쓰레기 되돌리기(uncomputing) 트릭으로 해결하고, 양자 병렬성을 위한 표준 연산 $|x\rangle|y\rangle \mapsto |x\rangle|y \oplus F(x)\rangle$를 정의합니다."
+description: '양자 회로가 고전 회로보다 강력한지(QC >= CC) 탐구합니다. 고전 연산의 비가역성(irreversibility) 문제를 <쓰레기 되돌리기(uncomputing)> 트릭으로 해결하고, 양자 병렬성을 위한 표준 연산 $|x\rangle|y\rangle \mapsto |x\rangle|y \oplus F(x)\rangle$를 정의합니다.'
 author: "Analysis by Gemini"
 date: "2025-11-02"
 categories: [Quantum Computing, Quantum Basics, Reversible Computing]

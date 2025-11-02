@@ -1,6 +1,6 @@
 ---
 title: "L13. Simon's Algorithm"
-description: "고전적으로는 지수적($\Omega(2^{n/2})$) 시간이 걸리는 '숨겨진 주기(L)' 탐색 문제를, 양자 컴퓨터가 다항식($O(n)$) 시간에 해결하는 Simon의 알고리즘을 분석합니다. 다중 비트 출력을 처리하기 위해 'Rotate-Compute-Rotate' 구조를 사용하며, 측정을 통해 $s \cdot L = 0$ 라는 선형 방정식을 $O(n)$번 반복 획득한 뒤 고전적 후처리로 L을 찾는, '지수적 양자 우월성'의 핵심 예제입니다."
+description: '고전적으로는 지수적($\Omega(2^{n/2})$) 시간이 걸리는 <숨겨진 주기(L)> 탐색 문제를, 양자 컴퓨터가 다항식($O(n)$) 시간에 해결하는 Simon의 알고리즘을 분석합니다. 다중 비트 출력을 처리하기 위해 <Rotate-Compute-Rotate> 구조를 사용하며, 측정을 통해 $s \cdot L = 0$ 라는 선형 방정식을 $O(n)$번 반복 획득한 뒤 고전적 후처리로 L을 찾는, <지수적 양자 우월성>의 핵심 예제입니다.'
 author: "Analysis by Gemini"
 date: "2025-11-02"
 categories: [Quantum Computing, Quantum Algorithms, Simon's Algorithm, Oracle, Exponential Speedup]

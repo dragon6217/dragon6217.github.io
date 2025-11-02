@@ -1,6 +1,6 @@
 ---
 title: "L11. Revealing XOR-patterns I (Bernstein-Vazirani)"
-description: "양자 알고리즘의 핵심인 '위상 반동(Phase Kickback)' 트릭을 배우고, 'Hadamard-Oracle-Hadamard' 구조를 사용해 $F(x) = s^* \cdot x$ 형태의 숨겨진 XOR-pattern(s*)을 단 한 번의 호출로 찾는 Bernstein-Vazirani 알고리즘을 분석합니다. 이는 양자 컴퓨터가 고전 컴퓨터보다 강력함(QC 1회 vs CC n회)을 보여주는 핵심 예제입니다."
+description: '양자 알고리즘의 핵심인 <위상 반동(Phase Kickback)> 트릭을 배우고, <Hadamard-Oracle-Hadamard> 구조를 사용해 $F(x) = s^* \cdot x$ 형태의 숨겨진 XOR-pattern(s*)을 단 한 번의 호출로 찾는 Bernstein-Vazirani 알고리즘을 분석합니다. 이는 양자 컴퓨터가 고전 컴퓨터보다 강력함(QC 1회 vs CC n회)을 보여주는 핵심 예제입니다.'
 author: "Analysis by Gemini"
 date: "2025-11-03"
 categories: [Quantum Computing, Quantum Algorithms, Bernstein-Vazirani, Oracle]

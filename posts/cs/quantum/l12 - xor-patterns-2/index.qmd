@@ -1,6 +1,6 @@
 ---
 title: "L12. Revealing XOR-patterns II (Boolean Fourier Transform)"
-description: "L11의 H-V-H 알고리즘을 '푸리에 샘플링'이라는 일반적인 프레임워크로 확장합니다. 데이터 벡터와 양자 상태의 관계(정규화)를 정의하고, Boolean Fourier Transform (BFT)의 기저가 되는 'XOR-패턴' $\{|\chi_s\rangle\}$의 직교성을 증명합니다. BFT 계수가 '상관관계'임을 보이고, Bernstein-Vazirani와 Simon 알고리즘을 통해 양자 우월성의 진정한 의미(지수적 분리)를 탐구합니다."
+description: 'L11의 H-V-H 알고리즘을 <푸리에 샘플링>이라는 일반적인 프레임워크로 확장합니다. 데이터 벡터와 양자 상태의 관계(정규화)를 정의하고, Boolean Fourier Transform (BFT)의 기저가 되는 <XOR-패턴> $\{|\chi_s\rangle\}$의 직교성을 증명합니다. BFT 계수가 <상관관계>임을 보이고, Bernstein-Vazirani와 Simon 알고리즘을 통해 양자 우월성의 진정한 의미(지수적 분리)를 탐구합니다.'
 author: "Analysis by Gemini"
 date: "2025-11-02"
 categories: [Quantum Computing, Quantum Algorithms, Fourier Transform, Bernstein-Vazirani, Simon's Algorithm]
