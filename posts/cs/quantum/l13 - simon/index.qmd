@@ -1,0 +1,175 @@
+---
+title: "L13. Simon's Algorithm"
+description: "고전적으로는 지수적($\Omega(2^{n/2})$) 시간이 걸리는 '숨겨진 주기(L)' 탐색 문제를, 양자 컴퓨터가 다항식($O(n)$) 시간에 해결하는 Simon의 알고리즘을 분석합니다. 다중 비트 출력을 처리하기 위해 'Rotate-Compute-Rotate' 구조를 사용하며, 측정을 통해 $s \cdot L = 0$ 라는 선형 방정식을 $O(n)$번 반복 획득한 뒤 고전적 후처리로 L을 찾는, '지수적 양자 우월성'의 핵심 예제입니다."
+author: "Analysis by Gemini"
+date: "2025-11-02"
+categories: [Quantum Computing, Quantum Algorithms, Simon's Algorithm, Oracle, Exponential Speedup]
+image: "images/cover.png"
+---
+
+## L13. Simon's Algorithm
+
+Simon의 알고리즘은 **Shor의 인수분해 알고리즘(Shor's factoring algorithm)의 직접적인 전조(direct precursor)**로 간주됩니다. (Shor의 알고리즘 $\approx$ Simon의 알고리즘 + (Boolean FT 대신) Discrete FT 사용)
+
+이 알고리즘은 양자 컴퓨터가 고전/확률적 컴퓨터보다 **지수적으로(exponentially) 빠를 수 있음**을 보여준 최초의 핵심 예제 중 하나입니다.
+
+### 1. 복습: 푸리에 샘플링 패러다임 (L12 Recap)
+
+L12에서 우리는 "푸리에 샘플링" 패러다임을 확립했습니다. ($N=2^n$)
+
+1.  **[LOAD DATA]:** $H^{\otimes n}$와 부호 오라클 $V_F$ (단일 비트 $F: \{0,1\}^n \to \{0,1\}$)를 사용하여 "데이터" $g(x) = (-1)^{F(x)}$를 진폭에 로드합니다.
+    $$|g\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} g(x) |x\rangle$$
+2.  **[BFT]:** $H^{\otimes n}$을 적용하여 "푸리에 상태" $|\tilde{g}\rangle = \sum_s \tilde{g}(s) |s\rangle$를 만듭니다.
+3.  **[MEASURE]:** 측정하면, 데이터 $g$와 패턴 $\chi_s$의 **상관관계(correlation)** $\tilde{g}(s)$의 제곱($P(s) = |\tilde{g}(s)|^2$)에 비례하는 확률로 패턴 $s$를 샘플링합니다.
+
+---
+
+### 2. Simon의 문제 설정: 다중 비트 출력 (Multiple Output Bits)
+
+Bernstein-Vazirani(BV)와 달리, Simon의 알고리즘은 **출력이 다중 비트**인 함수를 다룹니다.
+
+* **BV (L11/L12):** $F: \{0,1\}^n \to \{0,1\}$ (1 비트 출력). "위상 반동"($(-1)^{F(x)}$) 트릭 사용 가능.
+* **Simon (L13):** $F: \{0,1\}^n \to \{0,1\}^m$ ( $m \ge n-1$ 비트 출력). "위상 반동" 트릭 사용 불가.
+
+$F$의 출력이 $m$ 비트 문자열이므로, 직관적으로 "문자열" 대신 **"색깔(Color)"**로 생각하는 것이 유용합니다.
+($F: \{0,1\}^n \to \text{COLORS}$)
+
+$F$가 다중 비트를 출력하므로, "부호 오라클($V_F$)" 대신 L10의 **표준 "XOR 오라클($Q_F$)"**을 사용해야 합니다.
+$$Q_F: |x\rangle_n |y\rangle_m \mapsto |x\rangle_n |y \oplus F(x)\rangle_m$$
+
+### 3. Simon의 문제 정의 (The Simon's Problem)
+
+Simon의 문제는 이 $Q_F$ 오라클(블랙박스)에 대한 **"약속(promise)"**을 전제로 합니다.
+
+> **[Simon의 약속]**
+> $0$이 아닌($L \neq 00\dots0$) **"비밀 문자열" $L \in \{0,1\}^n$**이 *단 하나* 존재하여,
+> 모든 입력 $x, y \in \{0,1\}^n$에 대해 다음이 성립한다:
+>
+> $$F(x) = F(y) \iff (x = y \text{ or } x \oplus y = L)$$
+
+**함의:**
+* 이 약속은 $N=2^n$개의 모든 입력 공간(Boolean Cube)이 $L$에 의해 $2^{n-1}$개의 **쌍(pair)** $\{x, x \oplus L\}$으로 완벽하게 분할(partition)됨을 의미합니다.
+* 함수 $F$는 각 쌍(pair)의 두 입력에 대해 항상 **동일한 "색깔"(출력)을 부여**합니다. 즉, $F$는 정확히 **2-to-1** 함수입니다.
+
+
+
+> **Simon's Problem:**
+> 이 "2-to-1" 약속을 만족하는 "블랙박스(black box)" 오라클 $Q_F$가 주어졌을 때, **비밀 문자열 $L$을 찾으시오.**
+
+---
+
+### 4. 고전적 복잡도: 지수적 (Exponentially Hard)
+
+**주장 (Claim):** 고전 컴퓨터(결정론적이든 확률적이든)는 $L$을 찾기 위해 **지수적인($\Omega(\sqrt{N})$) 횟수**의 오라클 호출이 필요합니다.
+
+**이유 (Sketch):**
+1.  **정보 획득:** $L$에 대한 정보를 얻는 유일한 방법은 $x^{(i)} \neq x^{(j)}$인데 $F(x^{(i)}) = F(x^{(j)})$가 되는, 즉 **"충돌(collision)"**을 찾는 것입니다. (이때 $L = x^{(i)} \oplus x^{(j)}$ 입니다.)
+2.  **생일 문제 (Birthday Problem):** $F$는 $N/2 = 2^{n-1}$개의 "색깔" 중 하나를 반환하는 것과 유사합니다. $N/2$개의 항목 중에서 충돌을 찾으려면 **생일 문제**에 따라 약 $T \approx \sqrt{N/2} \approx \Omega(2^{n/2}) \approx \Omega((1.414)^n)$ 번의 샘플링(호출)이 필요합니다.
+3.  **결론:** $L$을 찾는 데 필요한 고전적 호출 횟수는 $n$에 대해 **지수적(exponential)**입니다.
+
+---
+
+### 5. 양자 복잡도: 다항식 (Polynomially Easy)
+
+**정리 (Simon):** 양자 컴퓨터는 $L$을 높은 확률로 결정하기 위해 **$O(n)$ (즉, $n$에 대한 다항식(polynomial)) 횟수**의 오라클 $Q_F$ 호출만 필요합니다.
+
+이는 **$\Omega((1.4)^n)$ (고전) vs $O(n)$ (양자)**이라는 **지수적 분리(Exponential Separation)**를 의미하며, (오라클 모델 하에서) 양자 컴퓨터가 고전 컴퓨터보다 근본적으로 강력함을 보여줍니다.
+
+*(참고: 이는 BQP $\neq$ BPP와 같은 표준 복잡도 클래스의 분리를 증명한 것은 아니며, "오라클"이라는 특수 모델 하에서의 분리를 의미합니다.)*
+
+---
+
+### 6. Simon의 알고리즘 (Quantum Algorithm)
+
+알고리즘은 "Rotate - Compute - Rotate" 구조를 따르지만, L11/L12와는 방식이 다릅니다.
+
+#### 6.1. 1단계: [Rotate-Compute] (얽힌 상태 생성)
+
+1.  두 레지스터 $|0\rangle^{\otimes n} |0\rangle^{\otimes m}$에서 시작합니다.
+2.  **[Rotate]:** 입력 레지스터에 $H^{\otimes n}$을 적용합니다.
+    $$\left( \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} |x\rangle \right) |0\rangle^{\otimes m}$$
+3.  **[Compute]:** $Q_F$ 오라클을 적용합니다.
+    $$|\psi_1\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} |x\rangle |F(x)\rangle$$
+
+결과물 $|\psi_1\rangle$은 모든 입력 $|x\rangle$와 그에 해당하는 "색깔" $|F(x)\rangle$가 거대하게 **얽힌(entangled)** 상태입니다.
+
+
+> **`quantee` 코드 스니펫 (Simon's Algorithm - Part 1):**
+> ```yaml
+> ::: {quantee}
+> qcircuit:
+>   qubits:
+>     - name: 'Input (n)'
+>       size: n
+>     - name: 'Output (m)'
+>       size: m
+>   circuit:
+>     # 1. Rotate
+>     - H: 0
+>     # 2. Compute
+>     - gate: Q_F
+>       qubits: [0, 1]
+>       props:
+>         name: 'Q_F'
+>         label: 'U_f'
+> :::
+> ```
+
+#### 6.2. 2단계: 분석 (출력 측정 가정)
+
+이 얽힌 상태 $|\psi_1\rangle$를 분석하기 위해, **출력 레지스터($m$ 큐비트)를 측정(Measure)한다**고 "가정"해봅니다. (이는 **지연된 측정의 원리**에 따라 분석의 편의를 위한 것이며, 실제로 중간에 측정할 필요는 없습니다.)
+
+1.  측정 시, $F$의 "색깔" 중 하나인 $C^*$를 고전적 결과로 얻습니다.
+2.  **Simon의 약속**에 따라, $F(x) = C^*$를 만족하는 $x$ 값은 **정확히 두 개**($x_0$와 $x_0 \oplus L$)가 존재합니다.
+3.  측정 순간, $|\psi_1\rangle$의 거대한 중첩은 이 두 항만 남기고 **붕괴(collapse)**합니다.
+4.  측정된 출력 레지스터 $|C^*\rangle$를 무시하고 나면, $n$ 큐비트의 **입력 레지스터**는 다음 상태가 됩니다.
+    $$|\psi_2\rangle = \frac{1}{\sqrt{2}} \left( |x_0\rangle + |x_0 \oplus L\rangle \right)$$
+
+#### 6.3. 3단계: [Rotate 2] (간섭 및 측정)
+
+이제 이 $|\psi_2\rangle$ 상태(입력 레지스터)에 $H^{\otimes n}$ (Boolean Fourier Transform)을 적용합니다.
+
+$$|\psi_{\text{final}}\rangle = H^{\otimes n} |\psi_2\rangle = H^{\otimes n} \left[ \frac{1}{\sqrt{2}} \left( |x_0\rangle + |x_0 \oplus L\rangle \right) \right]$$
+$$= \frac{1}{\sqrt{2}} \left[ H^{\otimes n}|x_0\rangle + H^{\otimes n}|x_0 \oplus L\rangle \right]$$
+L12의 BFT 정의($H^{\otimes n}|x\rangle = \frac{1}{\sqrt{N}} \sum_s (-1)^{s \cdot x} |s\rangle$)를 대입합니다.
+$$= \frac{1}{\sqrt{2N}} \sum_s \left[ (-1)^{s \cdot x_0} + (-1)^{s \cdot (x_0 \oplus L)} \right] |s\rangle$$
+$s \cdot (x_0 \oplus L) = (s \cdot x_0) \oplus (s \cdot L)$을 이용해 정리하면,
+$$= \frac{1}{\sqrt{2N}} \sum_s (-1)^{s \cdot x_0} \left[ 1 + (-1)^{s \cdot L} \right] |s\rangle$$
+
+이제 $\left[ 1 + (-1)^{s \cdot L} \right]$ 항에서 간섭이 발생합니다.
+* **Case 1: $s \cdot L = 1 \pmod 2$**
+    * $\left[ 1 + (-1)^1 \right] = 0$. 해당 $|s\rangle$의 진폭은 **0**이 됩니다. (**상쇄 간섭**)
+* **Case 2: $s \cdot L = 0 \pmod 2$**
+    * $\left[ 1 + (-1)^0 \right] = 2$. 해당 $|s\rangle$의 진폭은 0이 아닙니다. (**결맞는 간섭**)
+
+**측정 결과:**
+최종 상태를 측정하면, $x_0$나 $C^*$ 값에 관계없이 **$s \cdot L = 0 \pmod 2$** 라는 조건을 만족하는 문자열 $s$를 **100% 확률**로 얻게 됩니다. (정확히는 $s \cdot L = 0$을 만족하는 $N/2$개의 $s$ 중 하나를 균일한 확률($2/N$)로 샘플링합니다.)
+
+#### 6.4. 4단계: [반복 및 고전적 후처리]
+
+**"한 방에(one-shot)" 끝나지 않습니다.** 1회 실행으로 $L$에 대한 *하나의 선형 방정식* $s^{(1)} \cdot L = 0$ 만 얻습니다.
+
+$L$을 유일하게 결정하기 위해서는 $n-1$개의 *서로 독립인(linearly independent)* 선형 방정식이 필요합니다.
+
+**전체 알고리즘:**
+1.  $T = O(n)$ 번 (예: $T=4n$번) $H-Q_F-H \to \text{Measure}$ 회로를 **반복 실행**합니다.
+2.  $T$개의 (독립이 아닐 수도 있는) 방정식 $s^{(i)} \cdot L = 0$ 을 얻습니다.
+3.  **(고전적 후처리):** 이 $T$개의 방정식으로 $n \times n$ 선형 시스템(linear system)을 만듭니다.
+4.  **가우시안 소거법(Gaussian elimination)** (고전 $O(n^3)$)을 $\mathbb{F}_2$ 상에서 수행하여 이 연립방정식을 풉니다.
+5.  $n-1$개의 독립 방정식을 높은 확률로 얻게 되며, 해 공간(solution space)은 $\{0, L\}$ (1차원)이 됩니다.
+6.  $L \neq 0$ 약속에 따라, 유일한 비-영(non-zero) 해 $L$을 찾습니다.
+
+**최종 결론:**
+고전적으로는 $\Omega(2^{n/2})$ (지수적) 시간이 걸리는 Simon의 문제를, 양자 컴퓨터는 $O(n)$번의 오라클 호출과 $O(n^3)$의 고전적 후처리, 즉 **총 다항식(Polynomial) 시간**에 해결했습니다.
+
+---
+
+### (예고) Simon vs Shor
+
+Simon의 알고리즘은 Shor 알고리즘의 핵심 원형(prototype)입니다.
+
+| | **Simon's Algorithm (L13)** | **Shor's Algorithm (L16)** |
+| :--- | :--- | :--- |
+| **Group** | $\mathbb{Z}_2^n$ (n-bit 문자열과 $\oplus$) | $\mathbb{Z}_N$ (정수와 $+ \pmod N$) |
+| **Periodicity** | $F(x) = F(x \oplus L)$ | $F(x) = F(x + L) \pmod N$ |
+| **FT** | **Boolean FT ($H^{\otimes n}$)** | **Discrete FT (QFT)** |
