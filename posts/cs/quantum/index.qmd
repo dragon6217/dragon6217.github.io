@@ -1,0 +1,10 @@
+---
+title: "양자 컴퓨팅 시리즈"
+listing:
+  contents: "*/index.qmd"
+  sort: "title asc"       # 👈 L14, L15... 순서로 정렬
+  type: grid
+  categories: true
+---
+
+양자 알고리즘의 핵심 원리를 탐구합니다.
