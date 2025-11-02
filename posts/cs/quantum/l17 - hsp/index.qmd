@@ -1,0 +1,130 @@
+---
+title: "L17. The Hidden Subgroup Problem (HSP)"
+description: "지금까지 배운 모든 효율적인 양자 알고리즘(Bernstein-Vazirani, Simon, Shor)을 '숨겨진 부분군 문제(HSP)'라는 단일 프레임워크로 일반화합니다. HSP를 '그룹 G의 숨겨진 부분군 H를 찾는 문제'로 공식 정의하고, '아벨 그룹(Abelian)' HSP가 효율적으로 풀리는 이유(QFT + 고전 후처리)와 '비-아벨 그룹(Non-Abelian)' HSP가 미해결 난제로 남은 이유(고전 후처리 병목)를 탐구합니다."
+author: "Analysis by Gemini"
+date: "2025-11-02"
+categories: [Quantum Computing, Quantum Algorithms, HSP, Group Theory, Shor's Algorithm, Simon's Algorithm]
+image: "images/cover.png"
+---
+
+## L17. The Hidden Subgroup Problem (HSP)
+
+### 1. 🧩 핵심 아이디어: 모든 것을 아우르는 일반화
+
+**숨겨진 부분군 문제(Hidden Subgroup Problem, HSP)**는 우리가 지금까지 배운 모든 주요 양자 알고리즘(Bernstein-Vazirani, Simon, Shor/Period-Finding)을 아우르는 매우 강력하고 일반적인 **통합 프레임워크(generalization)**입니다.
+
+이 문제들은 모두 "어떤 함수 $F$의 숨겨진 대칭성(패턴)"을 찾는 문제이며, **"양자 푸리에 샘플링(Quantum Fourier Sampling)"**이라는 동일한 패러다임을 사용하여 효율적으로 해결됩니다.
+
+우리가 배운 알고리즘들은 모두 "어떤 **그룹(Group) $G$**의 숨겨진 **부분군(Subgroup) $H$**를 찾는 문제"로 일반화될 수 있습니다.
+
+| 알고리즘 (Lec.) | 그룹 (Group $G$) | 함수 $F: G \to \text{COLORS}$ | 약속 (Promise) / 구조 | 목표 (Find) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bernstein-Vazirani** (L11-12) | $\mathbb{Z}_2^n$ (XOR) | $F: \mathbb{Z}_2^n \to \{0,1\}$ | $F(x) = s \cdot x$ | $s$ 찾기 (Dual group) |
+| **Simon's** (L13) | $\mathbb{Z}_2^n$ (XOR) | $F: \mathbb{Z}_2^n \to \text{COLORS}$ | $F(x) = F(x \oplus L)$ (2-to-1) | $H = \{0, L\}$ |
+| **Period-Finding** (L15) | $\mathbb{Z}_N$ (Arithmetic) | $F: \mathbb{Z}_N \to \text{COLORS}$ | $F(x) = F(x+L \pmod N)$ | $H = \langle L \rangle$ |
+| **Shor's (현실)** (L16) | $\mathbb{Z}$ (Integers) | $F: \mathbb{Z} \to \text{COLORS}$ | $F(x) = F(x+L)$ | $H = \langle L \rangle$ |
+
+---
+
+### 2. 📖 HSP의 공식 정의 (수학적 배경)
+
+HSP를 정의하기 위해, "그룹", "부분군", "잉여류"라는 세 가지 수학적 용어가 필요합니다.
+
+#### 2.1. 그룹 (Group)
+그룹 $(G, *)$는 **집합 $G$**와 결합법칙/항등원/역원을 만족하는 **이항 연산 $* **$의 쌍입니다.
+* **아벨 그룹 (Abelian):** $x * y = y * x$ (교환법칙 성립). **(HSP가 쉬운 경우)**
+    * 예: $(\mathbb{Z}_2^n, \oplus)$, $(\mathbb{Z}_N, +)$, $(\mathbb{Z}_M^*, \times)$
+* **비-아벨 그룹 (Non-Abelian):** $x * y \neq y * x$ (교환법칙 성립 안 함). **(HSP가 어려운 경우)**
+    * 예: $S_n$ (대칭 그룹, 순열 합성), $D_N$ (이명박 그룹, 도형 대칭)
+
+#### 2.2. 부분군 (Subgroup)
+**부분군 $H \le G$**는 $G$의 부분집합이면서, $G$의 연산 $*$에 대해 그 자체로도 그룹을 이루는 집합입니다.
+* (L13) $G = \mathbb{Z}_2^n$, $H = \langle L \rangle = \{0, L\}$
+* (L15) $G = \mathbb{Z}_{24}$, $H = \langle 4 \rangle = \{0, 4, 8, 12, 16, 20\}$
+
+#### 2.3. 잉여류 (Coset)
+**잉여류 $x * H$**는 부분군 $H$를 그룹 $G$의 다른 원소 $x$를 이용해 "이동(translate)"시킨 **"복사본"**입니다. ($x * H = \{x * h \mid h \in H\}$)
+* 그룹 $G$는 $H$의 **서로소인(disjoint) 잉여류들로 완벽하게 분할(partition)**됩니다.
+* (L15) $G = \mathbb{Z}_{24}, H = \langle 4 \rangle$일 때, 잉여류는 $0+H, 1+H, 2+H, 3+H$ 4개입니다.
+
+
+
+---
+
+> **[정의] 숨겨진 부분군 문제 (HSP) for $G$**
+>
+> 1.  **입력 (Given):** 그룹 $G$와, "$H$-주기" 함수 $F: G \to \text{COLORS}$를 구현하는 **양자 오라클 $Q_F$**.
+> 2.  **약속 (Promise):** $F$는 $G$의 **"숨겨진 부분군" $H \le G$**에 대해 다음을 만족합니다.
+>     **$F(x) = F(y) \iff y \in x*H$**
+>     (즉, $F$는 $H$의 **각 잉여류(coset) 내에서 상수**이며, 잉여류 간에는 값이 다릅니다.)
+> 3.  **목표 (Goal):** $Q_F$를 다항식 횟수만큼 호출하여, $H$의 **생성자 집합(generating set)**을 찾으시오.
+
+---
+
+### 3. 🔑 HSP의 중요성: 3대 질문
+
+#### 3.1. ❓ Q1. HSP를 풀면 유용한가? (Applications)
+**네, 매우 유용합니다.** 많은 중요 문제들이 HSP로 환원될 수 있습니다.
+
+| HSP over Group (G) | G가 아벨 (Abelian)? | "실제" 응용 문제 (HSP로 환원 가능) |
+| :--- | :--- | :--- |
+| **$\mathbb{Z}_N$ / $\mathbb{Z}$** (덧셈) | **예** | **인수분해 (Factoring)** (RSA 암호) |
+| **$\mathbb{Z}_{P-1} \times \mathbb{Z}_{P-1}$** (덧셈) | **예** | **이산 로그 (Discrete Log)** (Diffie-Hellman, El Gamal 암호) |
+| $S_n$ (Symmetric Group) | 아니오 (Non-Abelian) | **그래프 동형 (Graph Isomorphism)** (고전적 "회색지대" 난제) |
+| $D_N$ (Dihedral Group) | 아니오 (Non-Abelian) | **최단 벡터 문제 (SVP)** (격자 기반 암호, PQC) |
+
+#### 3.2. 🤯 "기막힌 우연": QC와 "복잡도 회색지대"
+고전 컴퓨터 과학의 "회색지대"(P도 아니고 NP-Complete도 아닐 것으로 추정되는) 3대 난제는 **(1) 인수분해, (2) 이산 로그, (3) 그래프 동형**입니다.
+
+놀랍게도 양자 컴퓨터(HSP)가 공격하는 대상은 정확히 이 "회색지대" 문제들입니다. 아벨 HSP는 (1), (2)를 다항식 시간에 해결했으며, 비-아벨 HSP는 (3)을 표적으로 삼고 있습니다.
+
+#### 3.3. ❓ Q2. 양자 컴퓨터는 "모든" HSP를 효율적으로 풀 수 있는가? (The Great Divide)
+
+이것이 L17의 **가장 중요한 핵심**입니다.
+
+* **Case 1: $G$가 아벨 그룹(Abelian)일 때 ( $\mathbb{Z}_N, \mathbb{Z}_2^n$ 등)**
+    * **답: 예 (YES).**
+    * **이유:** "양자 푸리에 샘플링" 레시피가 완벽하게 작동합니다.
+        1.  **[QFT] (효율적):** $U_{\text{QFT}_G}$ (즉, $H^{\otimes n}$ 또는 QFT)가 $O(poly(n))$ 게이트로 효율적이었습니다.
+        2.  **[Clues $\to$ H] (효율적):** QFT 측정 "단서"($s \cdot L=0$ 또는 $s/N \approx k/L$)로부터 $H$ (즉, $L$)를 복원하는 **고전적 후처리**(선형대수, 연분수)가 $O(poly(n))$으로 효율적이었습니다.
+
+* **Case 2: $G$가 비-아벨 그룹(Non-Abelian)일 때 ( $S_n, D_N$ 등)**
+    * **답: 모른다 (No, we don't know how).**
+    * 이것이 현재 양자 알고리즘 연구의 **가장 큰 난제(open problem)**입니다.
+
+---
+
+### 4. 🚧 비-아벨 HSP의 병목: "고전적 후처리" (The Non-Abelian Bottleneck)
+
+**질문:** 왜 비-아벨 HSP는 풀기 어려운가? QFT가 없어서?
+**답: 아닙니다. QFT는 있습니다. 하지만 "단서"를 해석할 방법(고전 후처리)을 모릅니다.**
+
+**1. [QFT]는 효율적이다:**
+(Ettinger-Høyer-Knill '04) 놀랍게도, $S_n$과 $D_N$ 같은 복잡한 비-아벨 그룹에 대한 QFT조차 **다항식($poly(n)$) 시간의 양자 회로로 구현**할 수 있음이 알려져 있습니다.
+
+**2. [Clues $\to$ H] (진짜 병목):**
+* 아벨 그룹에서는 $s \cdot L = 0$ 이나 $s/N \approx j/L$ 처럼 "단서" $s$와 "목표" $L$의 관계가 단순하여, GCD나 선형대수로 $L$을 쉽게 풀 수 있었습니다.
+* **비-아벨 그룹**에서 나오는 "단서"는 훨씬 복잡한 수학적 객체(예: 그룹 표현의 라벨)이며, 이 "단서"들로부터 숨겨진 부분군 $H$의 생성자(generator)를 **효율적으로 재구성(reconstruct)하는 *고전적 후처리 알고리즘***을 (대부분의 "흥미로운" 그룹에 대해) 아직 모릅니다.
+
+---
+
+### 5. 💡 HSP에 대한 대안적 관점: 양자 가설 검정 (Quantum Hypothesis Testing)
+
+"QFT 패러다임"이 막혔으므로, HSP 문제를 **다른 관점**에서 바라볼 수 있습니다.
+
+**HSP = 혼합 상태 구별 문제**
+1.  **[LOAD DATA]:** $H-Q_F$ 회로는 $H$의 **임의의 잉여류(random coset)**에 대한 **균등 중첩 상태**를 생성합니다. (L13, L15와 동일)
+    * $|\psi_1\rangle = \frac{1}{\sqrt{|G|}} \sum_{x \in G} |x\rangle |F(x)\rangle$
+2.  **[측정 무시]:** 출력 레지스터("색깔")를 측정하지 않고 **무시(trace out)**하면,
+3.  **[혼합 상태]:** 입력 레지스터는 $H$의 모든 잉여류가 섞여 있는 **"코셋 혼합 상태" $\rho_H$**가 됩니다.
+    * $\rho_H = \frac{|H|}{|G|} \sum_{\text{cosets } x*H} |x*H\rangle \langle x*H|$
+
+**문제 재정의:**
+우리는 $H$에 따라 달라지는 **혼합 상태 $\rho_H$**를 생성하는 기계를 가지고 있습니다. 이 상태의 샘플(복사본)을 $k$개 받아서, 이 상태가 가능한 가설($\rho_{H_1}, \rho_{H_2}, \dots$) 중 어느 것인지 **구별(distinguish)**할 수 있습니까?
+
+**EHK '04의 반전:**
+1.  **정보는 충분하다:** $k = O(poly(n))$개의 샘플만 있으면, **정보 이론적으로(information-theoretically)** $H$를 구별하기에 **충분한 정보**가 됩니다.
+2.  **계산이 불가능하다:** 하지만, $H$를 "읽어내기" 위해 이 $k$개의 샘플에 어떤 **효율적인 양자 측정(algorithmic measurement)**을 수행해야 하는지는 **아직 모릅니다.**
+
+**최종 결론:**
+비-아벨 HSP는 (QFT든 EHK든) "양자 상태에 숨겨진 $H$ 정보를 효율적으로 추출하는 **알고리즘적 측정/후처리 방법**"을 모르기 때문에 풀리지 않고 있습니다.
