@@ -1,0 +1,133 @@
+---
+title: "L14. the Fourier Transform over Z_N"
+description: "Boolean Fourier Transform ($\mathbb{Z}_2^n$)을 Arithmetic ( $\mathbb{Z}_N$)으로 일반화하여 Discrete Fourier Transform (DFT)을 정의합니다. '그룹의 문자(Character)' 개념을 통해 DFT 기저 $\chi_s(x) = \omega_N^{sx}$를 유도하고, 이 기저의 직교정규성을 증명합니다. 고전적으로 지수적인($O(N \log N)$) 이 변환을, 양자 컴퓨터(QFT)는 $O(n^2)$의 효율적인 회로로 구현하는 원리를 탐구하고, 나아가 $O(n \log n)$의 '근사 QFT'로 최적화하는 방법을 다룹니다."
+author: "Analysis by Gemini"
+date: "2025-11-02"
+categories: [Quantum Computing, Quantum Algorithms, QFT, Shor's Algorithm]
+image: "images/cover.png"
+---
+
+## L14. the Fourier Transform over $\mathbb{Z}_N$
+
+### 1. 복습 (Recap)
+
+* **L12 (BFT):** $\mathbb{Z}_2^n$ (Boolean) 그룹 상의 푸리에 변환(BFT)을 배웠습니다. BFT($H^{\otimes n}$)는 "XOR-패턴" 기저 $\chi_s(x) = (-1)^{s \cdot x}$로 데이터를 분해합니다.
+* **L13 (Simon's):** $F(x \oplus L) = F(x)$ 약속을 가진 Simon의 문제를 BFT(푸리에 샘플링)를 $O(n)$번 사용하여 $\Omega(\sqrt{N})$의 고전적 한계를 깨고 다항식 시간에 해결했습니다.
+
+---
+
+### 2. 오늘 (L14): F.T. over $\mathbb{Z}_N$ (Discrete Fourier Transform)
+
+이제 모든 것을 "Boolean" $(\{0,1\}^n, \oplus)$에서 "Arithmetic" $(\mathbb{Z}_N, + \pmod N)$으로 일반화합니다. 이는 **Shor의 인수분해 알고리즘**의 수학적 기반이 됩니다.
+
+* **Shor의 문맥:** $F(x) = A^x \pmod M$ (주기 $L$을 가짐)의 주기를 찾는 것이 목표입니다. 이 주기 $L$은 $\mathbb{Z}_N$ (산술) 그룹의 주기입니다.
+* **데이터:** $g: \mathbb{Z}_N \to \mathbb{C}$ (여기서 $\mathbb{Z}_N = \{0, 1, \dots, N-1\}$)
+* **양자 상태:** $|g\rangle = \frac{1}{\sqrt{N}} \sum_{x=0}^{N-1} g(x) |x\rangle$
+    ( $|x\rangle$는 $0$부터 $N-1$까지의 정수를 나타냅니다.)
+
+#### 2.1. 새로운 패턴 기저: $\mathbb{Z}_N$의 문자 (Characters)
+
+$N$개의 새로운 직교정규(orthonormal) 패턴 벡터 $\{|\chi_s\rangle\}_{s=0}^{N-1}$를 정의합니다.
+
+> **[정의] DFT 기저 벡터**
+> 1.  **$N$제곱근 (Root of Unity):** $\omega_N = e^{2\pi i / N}$
+> 2.  **패턴 함수 (Character):** $\chi_s(x) = \omega_N^{s \cdot x}$
+> 3.  **패턴 기저 벡터 (Basis Vector):**
+>     $$|\chi_s\rangle = \frac{1}{\sqrt{N}} \sum_{x=0}^{N-1} \chi_s(x) |x\rangle = \frac{1}{\sqrt{N}} \sum_{x=0}^{N-1} \omega_N^{s \cdot x} |x\rangle$$
+
+* **(직관)** 이 패턴들은 $\pm 1$ (XOR)과 달리, $x$가 증가함에 따라 복소 평면의 단위원(unit circle)을 $s$번 회전하는 **"이산적인 사인/코사인파(discrete (co)sines)"**입니다.
+
+
+
+[Image of N-th roots of unity on the complex unit circle]
+
+
+---
+
+### 3. 양자 푸리에 변환 (QFT)
+
+**Discrete Fourier Transform (DFT)**는 데이터 $|g\rangle$를 이 새로운 "주파수" 기저 $\{|\chi_s\rangle\}$로 변환하는 것입니다. **Quantum Fourier Transform (QFT)**는 이 DFT를 구현하는 양자 회로 $U_{\text{QFT}}$입니다.
+
+#### 3.1. QFT의 효율성 (The Crucial Point)
+
+$N=2^n$ ($n=\log N$)이라고 가정할 때의 계산 복잡도입니다.
+
+* **고전 (Naïve DFT):** $O(N^2) = O((2^n)^2) = O(4^n)$ $\implies$ **지수적**
+* **고전 (FFT - Fast Fourier Transform):** $O(N \log N) = O(2^n \cdot n)$ $\implies$ 여전히 **지수적**
+* **양자 (QFT):** $O(n^2)$ 개의 1, 2-큐비트 게이트 $\implies$ **다항식**
+
+> **[핵심]**
+> QFT는 고전적으로 **지수적($O(N \log N)$)** 시간이 걸리는 DFT 연산을 **다항식($O(n^2)$)** 시간 안에 수행하는 양자 회로입니다.
+
+---
+
+### 4. 패턴의 일반적 정의: 그룹의 문자 (Character of a Group)
+
+"패턴" 함수 $\chi_s$가 "왜" $\omega_N^{sx}$ 형태여야 하는지에 대한 수학적 근거는, 이 함수가 $\mathbb{Z}_N$ 그룹의 연산 구조를 보존하는 **"문자(Character)"**이기 때문입니다.
+
+* **L12 ($\mathbb{Z}_2^n$):** $\chi_s(x \oplus y) = \chi_s(x) \cdot \chi_s(y)$ (XOR $\to$ 곱셈)
+* **L14 ($\mathbb{Z}_N$):** 우리는 $\chi_s(x + y) = \chi_s(x) \cdot \chi_s(y)$ (덧셈 $\to$ 곱셈)을 원합니다.
+
+이 **준동형 사상(homomorphism)** 속성을 만족하는 함수를 유도하면,
+$\chi_s(x) = \chi_s(1)^x$ 이고, $\chi_s(N)=\chi_s(0)=1$ 이어야 하므로, $\chi_s(1)^N = 1$ 이어야 합니다. 즉, $\chi_s(1)$은 $N$제곱근($\omega_N^s$)이어야 하며, 따라서 $\chi_s(x) = \omega_N^{sx}$ 형태가 됩니다.
+
+---
+
+### 5. "패턴 기저"의 직교정규성 증명 (Proof of Orthonormality)
+
+DFT 기저 $\{|\chi_s\rangle\}$가 직교정규($\langle \chi_t | \chi_s \rangle = \delta_{s,t}$)임을 증명합니다.
+
+$$\langle \chi_t | \chi_s \rangle = \frac{1}{N} \sum_{x=0}^{N-1} (\omega_N^{tx})^* \omega_N^{sx} = \frac{1}{N} \sum_{x=0}^{N-1} \omega_N^{(s-t)x}$$
+$R = s-t$ 라고 놓습니다.
+
+* **Case 1: $s = t$ (정규성)**
+    * $R = 0$ 이므로, $\langle \chi_s | \chi_s \rangle = \frac{1}{N} \sum_{x} \omega_N^0 = \frac{1}{N} \sum_{x} 1 = \frac{N}{N} = 1$
+
+* **Case 2: $s \neq t$ (직교성)**
+    * $R \neq 0$ 이므로, $\langle \chi_t | \chi_s \rangle = \frac{1}{N} \sum_{x=0}^{N-1} (\omega_N^R)^x$ 입니다.
+    * 이는 공비가 $r = \omega_N^R \neq 1$인 **등비수열(geometric series)의 합**입니다.
+    * 합은 $\sum_{x=0}^{N-1} r^x = \frac{1 - r^N}{1 - r} = \frac{1 - (\omega_N^N)^R}{1 - r} = \frac{1 - 1^R}{1 - r} = 0$ 입니다.
+    * $\langle \chi_t | \chi_s \rangle = \frac{1}{N} \cdot 0 = 0$
+
+**결론:** DFT 기저는 직교정규 기저이며, $U_{\text{QFT}}$는 Unitary 행렬입니다.
+
+---
+
+### 6. QFT 회로의 비밀: $O(n^2)$ 인수분해
+
+$N=2^n$일 때, $N \times N$ 행렬 $U_{\text{QFT}}$를 어떻게 $O(n^2)$ 게이트로 구현할 수 있을까요?
+**답:** $U_{\text{QFT}}$ 변환은 **인수분해(factorized)**되어 **얽히지 않은(unentangled) 곱 상태(product state)**로 표현될 수 있기 때문입니다.
+
+$U_{\text{QFT}}$가 표준 기저 $|x\rangle$에 작용하는 정의를 $n$개의 비트로 분해하면 다음과 같습니다.
+$$U_{\text{QFT}} |x\rangle = \bigotimes_{j=0}^{n-1} \left[ \frac{1}{\sqrt{2}} \left( |0\rangle + \omega_N^{x \cdot 2^j} |1\rangle \right) \right]$$
+(여기서 $j$는 큐비트 인덱스, $x$는 입력 정수)
+
+**의미:**
+* BFT($H^{\otimes n}$)와 달리, QFT의 $j$번째 출력 큐비트의 위상은 *여러* 입력 비트 $x$에 의존합니다.
+* 예를 들어, $n=4$일 때 $|x\rangle = |x_3 x_2 x_1 x_0\rangle$ ( $x = 8x_3 + 4x_2 + 2x_1 + 1x_0$)라면:
+    * 출력 큐비트 $y_3$ (MSB)의 위상은 $\omega_{16}^{8x} = (-1)^{x_0}$ $\implies$ $x_0$에만 의존.
+    * 출력 큐비트 $y_2$의 위상은 $\omega_{16}^{4x}$ $\implies$ $x_1, x_0$에 의존.
+    * ...
+    * 출력 큐비트 $y_0$ (LSB)의 위상은 $\omega_{16}^{1x}$ $\implies$ $x_3, x_2, x_1, x_0$ 모두에 의존.
+* 이 의존성은 **제어-위상 ($C$-$R_k$) 게이트**를 사용하여 구현됩니다.
+
+
+
+* **회로 구성:** $n$개의 $H$ 게이트와 $\frac{n(n-1)}{2}$개의 $C$-$R_k$ 게이트가 필요합니다.
+* **총 게이트 수:** $n + \frac{n(n-1)}{2} = O(n^2)$
+* (필요시 $O(n)$개의 SWAP 게이트로 출력 순서를 맞춥니다.)
+
+---
+
+### 7. 해법: 근사 QFT (Approximate QFT) $O(n \log n)$
+
+$O(n^2)$ 회로에는 심각한 **물리적 한계**가 있습니다.
+$n=1024$일 때, $C$-$R_{1024}$ 게이트는 $e^{2\pi i / 2^{1024}}$라는 **극도로 미세한(incredibly tiny)** 위상 각도를 구현해야 하며, 이는 물리적으로 **불가능**합니다.
+
+**해법 (Coppersmith):**
+* $k$가 클 때(예: $k \gg \log n$), 위상 각도 $\theta = 2\pi / 2^k$는 $0$에 매우 가깝습니다.
+* 이러한 게이트들은 계산에 거의 영향을 미치지 않으므로 **제거(remove)**해도 됩니다.
+* 정확도 $\epsilon$을 유지하면서 $O(\log(n/\epsilon))$보다 큰 $k$를 가진 게이트를 제거하면, 총 게이트 수는 **$O(n \log n)$**으로 줄어듭니다.
+
+**결론:**
+Shor의 알고리즘과 같은 "푸리에 샘플링" 알고리즘은 이러한 작은 오류에 **매우 강건(robust)**합니다. 덕분에 우리는 (물리적으로 불가능한) $O(n^2)$의 정확한 QFT 대신, (물리적으로 가능하고 **더 효율적인**) **$O(n \log n)$의 근사 QFT**를 사용하여 양자 알고리즘을 구현할 수 있습니다.
