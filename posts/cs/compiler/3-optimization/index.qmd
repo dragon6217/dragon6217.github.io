@@ -1,0 +1,174 @@
+---
+title: "컴파일러 백엔드 시리즈 3부: SSA를 활용한 최적화와 해제"
+description: "SSA 폼의 강력함을 활용한 최적화 기법(LVN, TDCE)을 분석하고, Phi(φ) 함수를 제거하여 다시 실행 가능한 코드로 되돌리는 파이프라인의 마지막 단계를 다룹니다."
+date: "2025-11-02"
+categories: [Compiler, Python, Bril, SSA, Optimization, LVN, TDCE]
+image: "images/cover_opt.png"
+---
+
+2부에서 우리는 복잡한 과정을 거쳐 Bril 코드를 **SSA (Static Single Assignment) 폼**으로 변환하고 검증했습니다. 이 모든 작업을 수행한 이유는 SSA 폼이 컴파일러 **최적화(Optimization)**를 매우 단순하고 강력하게 만들어주기 때문입니다.
+
+3부에서는 SSA 폼(혹은 일반 IR)을 활용하는 두 가지 대표적인 최적화(`lvn.py`, `tdce.py`)를 살펴보고, 최적화가 끝난 코드를 다시 실행 가능한 형태로 되돌리는 `from_ssa.py`를 분석합니다.
+
+## 7. 최적화 1: LVN (Local Value Numbering)
+
+`lvn.py`는 가장 고전적이고 효과적인 **국소 최적화(Local Optimization)** 기법인 **Local Value Numbering(LVN)**을 구현합니다. LVN은 하나의 기본 블록 *내에서* 작동하며, 핵심 아이디어는 간단합니다.
+
+> "이전에 *똑같은 연산*을 *똑같은 값*으로 수행한 적이 있다면, 다시 계산하지 말고 이전 결과를 재사용하자."
+
+LVN은 한 기본 블록 내에서 다음과 같은 최적화를 동시에 수행합니다.
+
+1.  **공통 부분 표현식 제거 (Common Subexpression Elimination, CSE):**
+    * `a = b + c;`
+    * `d = b + c;` $\rightarrow$ `d = id a;` (d는 a와 같음)
+2.  **상수 폴딩 (Constant Folding):**
+    * `a = 5 + 2;` $\rightarrow$ `a = const 7;`
+3.  **복사 전파 (Copy Propagation):**
+    * `a = b;`
+    * `c = a + 1;` $\rightarrow$ `c = b + 1;`
+
+### `lvn.py` 핵심 로직 분석
+
+LVN은 기본 블록을 스캔하면서 "값(Value)"을 식별하는 여러 개의 맵(테이블)을 유지 관리합니다.
+
+* `var2num`: `Map<VarName, ValueNumber>`
+  * 현재 시점에 각 **변수**가 어떤 **값 번호**를 갖고 있는지 추적합니다.
+* `value2num`: `Map<ValueTuple, ValueNumber>`
+  * 특정 **연산**(`Value(op, args)`)이 어떤 **값 번호**와 매핑되는지 저장하는 '캐시'입니다.
+* `num2vars`: `Map<ValueNumber, VarName>`
+  * 특정 **값 번호**를 저장하고 있는 **대표 변수**가 무엇인지 저장합니다. (CSE용)
+* `num2const`: `Map<ValueNumber, Literal>`
+  * 특정 **값 번호**가 **상수**임을 저장합니다. (상수 폴딩용)
+
+
+
+`lvn_block`의 메인 루프는 명령어를 순회하며 다음을 수행합니다.
+
+1.  **인자(Args) 번호 조회:** 명령어의 인자(`argvars`)가 `var2num` 테이블을 참조하여 어떤 *값 번호*(`argnums`)를 갖는지 확인합니다.
+2.  **값(Value) 생성:** `val = Value(instr['op'], argnums)` 튜플을 생성합니다. (예: `Value('add', (1, 2))`)
+3.  **캐시 조회(CSE):** `num = lookup(value2num, val)`
+4.  **캐시 히트 (Hit) - 중복 연산 발견!**
+    * 이전에 계산된 값 번호(`num`)를 가져옵니다.
+    * 현재 명령어를 `op: 'const'` (상수 폴딩) 또는 `op: 'id'` (CSE/복사 전파)로 덮어씁니다.
+5.  **캐시 미스 (Miss) - 새로운 연산!**
+    * **새로운 값 번호**(`newnum`)를 생성합니다.
+    * `value2num[val] = newnum`: `value2num` 캐시에 이 새로운 `Value`와 `newnum`을 저장합니다.
+
+> **💡 LVN과 SSA의 관계**
+>
+> 이 `lvn.py` 구현은 **국소적(Local)**입니다. 즉, 기본 블록이 끝나면 모든 테이블 정보가 사라집니다.
+>
+> 반면, 2부에서 수행한 **SSA 변환**은 그 자체로 **전역적(Global)**인 '값 번호 매기기'(Global Value Numbering, GVN)의 한 형태입니다. SSA 폼에서는 `x.0`, `x.1` 같은 변수 이름 자체가 그 값의 고유한 '번호' 역할을 하기 때문입니다.
+
+---
+
+## 8. 최적화 2: TDCE (Trivial Dead Code Elimination)
+
+최적화의 또 다른 큰 축은 "불필요한 코드"를 제거하는 것입니다. **죽은 코드(Dead Code)**란, 그 코드를 실행한 결과(정의된 변수)가 프로그램의 나머지 부분 어디에서도 **전혀 사용되지 않는** 코드를 말합니다.
+
+`tdce.py`의 "Trivial" (간단한)이라는 이름은 이 최적화가 복잡한 데이터 흐름 분석 없이, 매우 간단한 스캔만으로 죽은 코드를 찾아낸다는 의미입니다.
+
+이 간단한 접근 방식은 **SSA 폼에서 특히 강력**합니다.
+
+* **일반 IR:** `x = 1; x = 2; print(x);`
+    * `x = 1`은 죽은 코드가 맞지만, `x`라는 변수 자체는 `print(x)`에서 '사용'됩니다. 이 코드가 죽었는지 판별하기 까다롭습니다.
+* **SSA 폼:** `x.0 = 1; x.1 = 2; print(x.1);`
+    * `x.0`이라는 변수는 단 한 번 정의됩니다.
+    * 프로그램 전체를 스캔해서 `x.0`을 `args`로 사용하는 명령어가 **단 하나도 없다면**, `x.0 = 1` 명령어는 **명백하게(Trivially) 죽은 코드**입니다.
+
+### `trivial_dce_pass` 핵심 로직 분석
+
+`trivial_dce_pass` 함수는 간단한 2-Pass 알고리즘으로 동작합니다.
+
+#### 1. Pass 1: 사용된 변수 마킹 (Mark)
+먼저, 함수 전체를 한 번 스캔하여 "단 한 번이라도 `args`로 사용된" 변수들의 **전역 집합(global set)** `used`를 만듭니다.
+
+```python
+    used = set()
+    for block in blocks:
+        for instr in block:
+            # Mark all the variable arguments as used.
+            used.update(instr.get('args', []))
+```
+
+## 2. Pass 2: 죽은 코드 제거 (Sweep)
+
+`used` 집합이 완성되면, 함수 전체를 다시 스캔하며 각 명령어를 필터링합니다.
+
+* **'dest'가 없는 명령어** (예: `print`, `br`): 절대 제거하지 않습니다 (Keep).
+* **'dest'가 있는 명령어:** `if i['dest'] in used:`
+    * 목적지 변수가 `used` 집합에 있다면: 유지합니다 (Keep).
+    * 목적지 변수가 `used` 집합에 없다면: 제거합니다 (Sweep).
+
+```python
+new_block = [i for i in block
+                   if 'dest' not in i or i['dest'] in used]
+```
+
+```python
+// 변환 전
+.pred1:
+  v.0 = const 1;
+  br cond .after .pred2;
+.pred2:
+  v.1 = const 2;
+  jmp .after;
+.after:
+  v.2 = phi v.0 v.1; // .pred1에서 오면 v.0, .pred2에서 오면 v.1
+```
+
+```python
+// 변환 후 (Phi-Lowering)
+.pred1:
+  v.0 = const 1;
+  v.2 = id v.0;      // <--- .after를 위해 미리 v.2에 v.0 복사
+  br cond .after .pred2;
+.pred2:
+  v.1 = const 2;
+  v.2 = id v.1;      // <--- .after를 위해 미리 v.2에 v.1 복사
+  jmp .after;
+.after:
+  // phi 함수 제거됨.
+  // 이 시점에 v.2는 항상 올바른 값을 가짐.
+```
+
+### from_ssa.py 핵심 로직 분석
+
+`func_from_ssa` 함수는 이 알고리즘을 두 단계로 구현합니다.
+
+1.  **1단계: $\phi$ 함수를 찾아 전임자에 복사본 삽입**
+    * 모든 블록을 순회하며 `op: 'phi'`인 명령어를 찾습니다.
+    * $\phi$ 명령어를 찾으면, `instr['labels']` (전임자 블록 리스트)와 `instr['args']` (가져올 변수 리스트)를 순회합니다.
+    * 각 `(label, var)` 쌍에 대해:
+        * `pred = blocks[label]`: `label` 이름으로 전임자 블록(`pred`)을 찾습니다.
+        * `pred.insert(-1, ...)`: `pred` 블록의 마지막 명령어(종결자) 바로 앞(`-1` 위치)에 `id` (복사) 명령어를 삽입합니다. ( `{'op': 'id', 'args': [var], 'dest': dest}` )
+
+2.  **2단계: $\phi$ 함수 제거**
+    * 모든 $\phi$ 함수에 대한 복사본 삽입이 완료된 후, 다시 블록들을 순회하며 `op: 'phi'`인 모든 명령어를 **제거(filter out)**합니다.
+
+```python
+def func_from_ssa(func):
+    blocks = block_map(form_blocks(func['instrs']))
+    # ... (add_entry, add_terminators) ...
+
+    # 1단계: 전임자 블록에 'id' (복사) 명령어 삽입
+    for block in blocks.values():
+        for instr in block:
+            if instr.get('op') == 'phi':
+                dest = instr['dest']
+                for i, label in enumerate(instr['labels']):
+                    var = instr['args'][i]
+                    pred = blocks[label]
+                    pred.insert(-1, { # 종결자(-1) 앞에 복사본 삽입
+                        'op': 'id',
+                        'type': instr['type'],
+                        'args': [var],
+                        'dest': dest,
+                    })
+
+        # 2단계: 현재 블록에서 모든 phi 명령어 제거
+        new_block = [i for i in block if i.get('op') != 'phi']
+        block[:] = new_block
+
+    func['instrs'] = reassemble(blocks)
+```
