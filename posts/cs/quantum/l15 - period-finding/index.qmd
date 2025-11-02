@@ -1,0 +1,143 @@
+---
+title: "L15. Period-Finding (Simon's Algorithm over Z_N)"
+description: "Shor 알고리즘의 핵심인 '주기 찾기' 문제를 $\mathbb{Z}_N$ (산술) 그룹으로 일반화합니다. 'L|N' (이상적 주기)의 경우, QFT가 '펄스 열'을 '펄스 열'로 변환함을 증명하고, $\text{gcd}$를 이용한 $O(1)$의 효율적인 후처리를 분석합니다. 나아가 'L nmid N' (현실적 주기)의 경우, QFT가 '근사 피크'를 생성하지만, '연분수 알고리즘'을 통해 여전히 다항식 시간에 주기를 찾을 수 있음을 보입니다."
+author: "Analysis by Gemini"
+date: "2025-11-02"
+categories: [Quantum Computing, Quantum Algorithms, QFT, Shor's Algorithm, Period Finding]
+image: "images/cover.png"
+---
+
+## L15. Period-Finding (Simon's Algorithm over $\mathbb{Z}_N$)
+
+이 강의는 **Shor의 인수분해 알고리즘**의 핵심 구성 요소입니다. L13(Simon)이 $\mathbb{Z}_2^n$ (XOR) 그룹의 "숨겨진 주기" $L$을 찾는 것이었다면, L15는 $\mathbb{Z}_N$ (산술) 그룹의 "숨겨진 주기" $L$을 찾는 문제입니다.
+
+### 1. 문제 설정 (The Setup)
+
+* **함수:** $F: \mathbb{Z}_N \to \text{COLORS}$ (즉, $n=\log N$ 큐비트를 입력받아 $m$ 큐비트 "색깔"을 출력합니다.)
+* **오라클:** $Q_F$ (XOR 오라클) $U_F: |x\rangle |y\rangle \mapsto |x\rangle |y \oplus F(x)\rangle$에 접근할 수 있습니다.
+* **목표:** $F$의 "주기" $L$을 효율적으로 (즉, 오라클 호출을 다항식 $O(poly(n))$ 횟수만큼 사용하여) 찾는 것입니다.
+
+### 2. "L-Periodic" 약속 (The Promise)
+
+> **[주기성 약속 (L-periodic)]**
+> 숨겨진 "주기" $L$이 존재하여,
+> 1.  모든 $x \in \mathbb{Z}_N$에 대해 $F(x) = F(x+L \pmod N)$이 성립합니다.
+> 2.  주기 내의 모든 값은 고유합니다. (즉, $F(x) = F(y) \iff L | (y-x) \pmod N$)
+
+**예시 ($L=4$):**
+함수 $F$는 $L$개의 고유한 "색깔" (R, G, B, Y)을 가지고, 이 패턴이 $N/L$번 반복됩니다.
+$F: (R, G, B, Y | R, G, B, Y | R, G, B, Y | \dots)$
+$x: (0, 1, 2, 3 | 4, 5, 6, 7 | 8, 9, 10, 11 | \dots)$
+
+
+
+### 3. $\mathbb{Z}_N$ 상의 "푸리에 샘플링" 패러다임
+
+알고리즘은 L12/L13에서 배운 "푸리에 샘플링" 패러다임을 그대로 따릅니다.
+
+1.  **[LOAD DATA]:** $Q_F$ 오라클을 사용하여 $F(x)$의 "주기성" 정보를 양자 상태의 진폭에 "로드"합니다.
+2.  **[FOURIER TRANSFORM]:** $\mathbb{Z}_2^n$의 BFT($H^{\otimes n}$) 대신, $\mathbb{Z}_N$의 **QFT (L14)**를 적용합니다.
+3.  **[MEASURE]:** 변환된 "주파수" 상태를 측정하여 $L$에 대한 "단서(clue)"를 얻습니다.
+
+---
+
+### 4. 1단계: "데이터 로딩" (State Preparation)
+
+L13(Simon)에서와 정확히 동일한 방식으로 "데이터"를 로드합니다.
+
+1.  **준비:** $|0\rangle^{\otimes n} |0\rangle^{\otimes m}$
+2.  **[Rotate]:** 입력 레지스터에 $H^{\otimes n}$을 적용하여 균등 중첩을 만듭니다. ( $N=2^n$ 가정)
+    $$\left( \frac{1}{\sqrt{N}} \sum_{x=0}^{N-1} |x\rangle \right) |0\rangle^{\otimes m}$$
+3.  **[Compute]:** $Q_F$ (XOR 오라클)을 적용합니다.
+    $$|\psi_1\rangle = \frac{1}{\sqrt{N}} \sum_{x=0}^{N-1} |x\rangle |F(x)\rangle$$
+
+이 결과물 $|\psi_1\rangle$은 모든 입력 $|x\rangle$와 그에 해당하는 "색깔" $|F(x)\rangle$가 **얽힌(entangled)** 상태입니다.
+
+---
+
+### 5. 2단계: 분석 (출력 측정 및 붕괴)
+
+이 얽힌 상태 $|\psi_1\rangle$를 분석하기 위해, **출력 레지스터를 측정(Measure)**한다고 "가정"합니다 (지연된 측정의 원리).
+
+1.  **측정:** $m$-큐비트 출력 레지스터를 측정하면, "색깔" $C^*$가 관측됩니다.
+2.  **붕괴 (Collapse):** $F(x) = C^*$를 만족하는 $x$ 값들만 살아남습니다. $L|N$이라는 "이상적인" 가정 하에서, 이 $x$ 값들은 정확히 $K = N/L$개 존재합니다.
+    ( $x_0, x_0+L, x_0+2L, \dots, x_0 + (K-1)L$ )
+3.  **"신호" 상태:** 출력 레지스터 $|C^*\rangle$를 무시(discard)하고 나면, $n$ 큐비트의 **입력 레지스터**는 다음과 같은 "신호" 상태가 됩니다.
+    $$|\psi_{\text{signal}}\rangle = |\psi_{x_0}\rangle = \sqrt{\frac{L}{N}} \sum_{k=0}^{K-1} |x_0 + kL\rangle$$
+    
+    이것은 $x_0$라는 **무작위 시작점(random offset)**을 갖는 **"펄스 열(pulse train)"**입니다.
+
+---
+
+### 6. 3단계: QFT와 측정 (푸리에 변환)
+
+#### 6.1. 해법: 푸리에 이동 정리 (Fourier Shift Theorem)
+
+$x_0$가 무작위 값이라는 것은 심각한 문제처럼 보입니다. 하지만 **푸리에 이동 정리**가 이 문제를 해결합니다.
+
+> **[Lemma] (Pleasing Fact!)**
+> "이동된" 신호 $|g_{x_0}\rangle$의 QFT $|\tilde{g}_{x_0}\rangle$는, "이동 안 된" 신호($x_0=0$)의 QFT $|\tilde{g}\rangle$에 **위상 항(phase term)** $\omega_N^{-s \cdot x_0}$만 곱한 것입니다.
+> $$|\tilde{g}_{x_0}\rangle = \sum_s \left( \tilde{g}(s) \cdot \omega_N^{-s \cdot x_0} \right) |s\rangle$$
+
+**측정 확률 (The Punchline):**
+측정 확률은 진폭의 제곱 $P(s) = |\tilde{g}_{x_0}(s)|^2 = |\tilde{g}(s)|^2 \cdot |\omega_N^{-s \cdot x_0}|^2$ 입니다.
+$|\omega_N^{-s \cdot x_0}|^2 = 1$ 이므로, **$P(s) = |\tilde{g}(s)|^2$** 입니다.
+
+**결론:** 최종 측정 확률 분포는 무작위 오프셋 $x_0$와 **완전히 독립적(independent)**입니다. 따라서 $x_0=0$인 가장 간단한 경우만 분석하면 됩니다.
+
+#### 6.2. "펄스 열"의 QFT ( $L|N$ 이상적 경우)
+
+$x_0=0$인 "신호" $|g_0\rangle = \sqrt{\frac{L}{N}} \sum_{k=0}^{K-1} |kL\rangle$ (주기 $L$, 펄스 $K=N/L$개)의 QFT $|\tilde{g}\rangle = \sum_s \tilde{g}(s) |s\rangle$를 계산합니다.
+
+$s$번째 진폭 $\tilde{g}(s) = \langle s | U_{\text{QFT}} | g_0 \rangle$는 공비 $r = \omega_N^{-sL}$를 갖는 등비수열의 합입니다.
+$$\tilde{g}(s) = \frac{\sqrt{L}}{N} \sum_{k=0}^{K-1} \left( \omega_N^{-sL} \right)^k$$
+
+* **Case 1: $s \cdot L = 0 \pmod N$ ( $s$가 $K=N/L$의 배수)**
+    * $r=1$이 되어 **결맞는 간섭**이 일어납니다.
+    * $\tilde{g}(s) = \frac{\sqrt{L}}{N} \cdot K = \frac{\sqrt{L}}{N} \cdot \frac{N}{L} = \frac{1}{\sqrt{L}}$
+* **Case 2: $s \cdot L \neq 0 \pmod N$ ( $s$가 $K$의 배수가 아님)**
+    * $r \neq 1$이지만 $r^K = (\omega_N^{-sL})^{N/L} = (\omega_N^{-N})^s = 1^s = 1$ 입니다.
+    * 등비수열 합 공식 $\frac{1-r^K}{1-r} = \frac{1-1}{1-r} = 0$ 이므로 **상쇄 간섭**이 일어납니다.
+    * $\tilde{g}(s) = 0$
+
+**결론 (측정):**
+QFT의 결과 $|\psi_{\text{final}}\rangle$는 **주기 $K=N/L$을 가진 또 다른 "펄스 열"**입니다.
+$$|\psi_{\text{final}}\rangle = \sum_{j=0}^{L-1} \frac{1}{\sqrt{L}} |j \cdot K\rangle \quad (\text{where } K = N/L)$$
+측정 시, 우리는 $\mathbf{K=N/L}$의 배수 $s = j \cdot (N/L)$ ( $j$는 랜덤)를 확률 $1/L$로 얻습니다.
+
+
+
+---
+
+### 7. 4단계: $L$ 찾기 (고전적 후처리, $L|N$ 경우)
+
+$s = j \cdot (N/L)$ 라는 단서($s/N = j/L$)로부터 $L$을 어떻게 찾을까요?
+
+1.  $H-Q_F-QFT \to \text{Measure}$ 회로를 **두 번** 반복하여 $s_1, s_2$를 얻습니다 ( $s_i \neq 0$ 가정).
+2.  $s_1 = j_1 (N/L)$, $s_2 = j_2 (N/L)$ 입니다.
+3.  $K' = \text{gcd}(s_1, s_2)$를 (고전적으로) 계산합니다.
+4.  $K' = \text{gcd}(j_1 K, j_2 K) = K \cdot \text{gcd}(j_1, j_2)$
+5.  두 무작위 정수 $j_1, j_2$가 **서로소($\text{gcd}(j_1, j_2)=1$)일 확률**은 $\frac{6}{\pi^2} \approx 60.7\%$ (상수) 입니다.
+6.  높은 확률로 $K' = K = N/L$ 이므로, $L = N/K'$로 $L$을 복원합니다.
+7.  **총 비용:** $O(1)$ (상수) 횟수의 양자 호출과 $O(n^3)$의 고전 후처리(GCD)로, **다항식(polynomial) 시간**에 $L$을 찾습니다.
+
+---
+
+### 8. Shor의 실제 문제: $L \nmid N$ (현실적 경우)
+
+Shor의 실제 문제에서는 $L$이 $N$을 나누지 않습니다 ($K=N/L$가 정수가 아님).
+
+* **입력 (Time):** "신호" $|\psi_{\text{signal}}\rangle$는 $M' = \lfloor N/L \rfloor$ 또는 $\lceil N/L \rceil$ 개의 펄스를 가진 **"불완전한" 펄스 열**입니다.
+* **QFT (Freq.):** $|\psi_{\text{final}}\rangle$는 완벽한 "펄스 열"이 아니라, "이상적인" 주파수($s \approx jN/L$) **"근처(near)"**에 확률이 **"집중(peaked)"**되는 "흐트러진(smeared)" 스펙트럼이 됩니다.
+* **증명 (Shor's Lemma):**
+    이 "불완전한" 펄스 열의 QFT를 수학적으로 분석하면(L15-3-2-1, L15-3-2-2-1, L15-3-2-2-2 개인 노트), $jN/L$에 **"가장 가까운" 정수** $s = \lfloor jN/L \rceil$를 측정할 확률 $P(s)$가 **최악의 경우에도 $4/\pi^2 \approx 0.405$ 이상**임이 보장됩니다 (단, 이는 $L$개 피크 중 하나에 대한 확률).
+    $$P(s = \lfloor jN/L \rceil) \ge \frac{4}{\pi^2 L} \approx \frac{0.405}{L}$$
+
+
+
+**최종 결론 (Shor):**
+$L \nmid N$이라는 "현실적인" 경우에도, $H-Q_F-QFT$를 측정하면 $\frac{s}{N} \approx \frac{j}{L}$를 만족하는 "좋은" $s$를 $O(n)$번의 반복으로 높은 확률로 샘플링할 수 있습니다.
+
+이 "나쁜" 근사 분수 $\frac{s}{N}$로부터 $L$을 복원하기 위해, **연분수 알고리즘 (Continued Fractions Algorithm)**이라는 강력한 고전 $O(n^3)$ 후처리 기법을 사용합니다.
+
+**총 비용:** $O(n \log n)$ (근사 QFT) $\times$ $O(n)$ (반복) + $O(n^3)$ (연분수) $\implies$ **총 다항식(polynomial) 시간**
