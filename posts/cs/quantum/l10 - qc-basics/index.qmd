@@ -1,0 +1,245 @@
+---
+title: "L10. Basics of Quantum Computing"
+description: "양자 회로가 고전 회로보다 강력한지(QC >= CC) 탐구합니다. 고전 연산의 비가역성(irreversibility) 문제를 '쓰레기 되돌리기(uncomputing)' 트릭으로 해결하고, 양자 병렬성을 위한 표준 연산 $|x\rangle|y\rangle \mapsto |x\rangle|y \oplus F(x)\rangle$를 정의합니다."
+author: "Analysis by Gemini"
+date: "2025-11-02"
+categories: [Quantum Computing, Quantum Basics, Reversible Computing]
+image: "images/cover.png"
+---
+
+## L10. Basics of Quantum Computing
+
+양자 컴퓨팅(Quantum Computing)을 다루기 전에, 고전 컴퓨팅(Classical Computing)의 **회로 모델(Circuit Model)**을 간단히 복습하며 시작하겠습니다.
+
+### 고전 회로 (Classical Circuit)
+
+고전 회로 $C$는 특정 함수 $F: \{0,1\}^n \to \{0,1\}^m$를 계산합니다.
+
+* **입력 (Input):** $n$개의 비트 $x_1, \dots, x_n$
+* **게이트 (Gates):** AND, OR, NOT (혹은 NAND, NOT과 같은 universal gate set)
+* **출력 (Output):** $m$개의 비트 $y_1, \dots, y_m$
+
+---
+
+### 계산의 효율성 (Efficiency)
+
+우리는 주로 효율성, 즉 게이트의 수가 입력 크기 $n$에 따라 어떻게 확장(scale)되는지에 초점을 맞춥니다. 효율성을 측정하는 간단한 척도는 **게이트의 수(# of gates)**입니다.
+
+### 회로 모델과 다른 계산 모델의 비교
+
+"왜 하필 (파이썬 코드나 튜링 머신이 아닌) 회로 모델에 집중하는가?"
+
+결론부터 말하면, **회로의 게이트 수(# of gates)는 다른 모델(예: 튜링 머신, Python 코드)의 실행 시간(running time)과 다항식(polynomially) 관계로 비교 가능**하기 때문입니다.
+
+**핵심 정리 (Fact/Theorem):**
+> 만약 Python 코드 (혹은 튜링 머신 등)로 작성된 알고리즘이 함수 $F$를 $T$ 스텝 안에 계산한다면,
+> 이 함수 $F$를 계산하는 고전 회로를 **최대 $O(T \log T)$개의 게이트**를 사용하여 만들 수 있습니다.
+
+실질적으로 다음과 같은 근사가 가능합니다:
+**게이트의 수 $\approx$ 알고리즘의 실행 시간 $T$**
+
+---
+
+### 고전 회로의 한계: 대부분의 함수는 비효율적이다
+
+Shannon의 정리에 따르면, 거의 모든(Almost all) 불리언 함수(Boolean Function) $F: \{0,1\}^n \to \{0,1\}$는 **최소 $\Omega(2^n / n)$개의 게이트**를 필요로 합니다.
+
+$n=500$만 되어도 $2^{500}$은 실행 불가능한(infeasible) 숫자입니다. 다행히도, 우리는 "모든" 함수가 아닌 **"흥미로운" 특정 함수**들(예: 소수 판별, 최단 경로 탐색 등)에만 관심이 있으며, 이러한 함수들은 다행히도 **다항식(polynomial) 수의 게이트**($O(n^k)$)로 해결할 수 있습니다.
+
+---
+
+## 양자 회로 모델 (Quantum Circuit Model)
+
+1.  **입력 (Input):** $n$개의 큐비트. (예: $|0\rangle^{\otimes n}$)
+2.  **연산 (Operation):** 1-큐비트 게이트(H, Rotation)와 2-큐비트 게이트(CNOT) 등의 연속적인 적용. (이 조합은 $2^n \times 2^n$ Unitary 행렬 $U$로 표현됩니다.)
+3.  **출력 (Output):** $m$개의 고전적인 비트를 얻기 위한 **측정(Measurement)**.
+
+#### 💡 핵심 원칙: 지연된 측정의 원리 (Principle of Deferred Measurement)
+
+양자 회로를 분석할 때 매우 유용한 원칙입니다.
+
+> 회로 중간에 측정이 포함되어 있더라도, 보조 큐비트(ancilla qubit) 등을 사용하여 **모든 측정을 회로의 맨 마지막 단계로 미루는(defer)** 것과 동일한(behave identically) 회로를 구성할 수 있습니다.
+
+따라서, **일반성을 잃지 않고 (WLOG)**, 모든 양자 회로는 "초기 상태 준비 $\to$ 단일 Unitary 연산 $U$ $\to$ 최종 측정"의 단순한 형태로 가정하고 분석할 수 있습니다.
+
+---
+
+## 확률적 컴퓨팅 (Probabilistic Computing)
+
+고전 회로에 **무작위 동전 던지기(FLIP) 게이트**를 추가한 모델입니다.
+
+### 확률적 회로의 "계산"
+확률적 회로 $C$가 함수 $F$를 계산한다는 것은, 모든 입력 $x$에 대해 오답을 낼 확률이 $\epsilon \le 1/3$처럼 작다는 것을 의미합니다.
+$$\text{Pr}[C(x) \neq F(x)] \le \epsilon$$
+(오류 확률이 크더라도 여러 번 반복(repeat)하면 오류를 지수적으로 줄일 수 있습니다.)
+
+**중요한 사실 (BPP = P 추측):**
+> 확률적 컴퓨터(BPP)는 결정론적 컴퓨터(P)보다 **지수적으로(exponentially) 빠르지는 않다**고 여겨집니다.
+
+---
+
+## 양자 컴퓨팅 vs 고전 컴퓨팅 (QC vs CC)
+
+**Q1. 양자 회로(QC)가 고전 회로(CC)보다 더 효율적으로 계산할 수 있는 함수 $F$가 존재하는가?**
+* **A: 그렇다고 생각합니다 (Yes, think so).** (예: 인수분해 - Shor의 알고리즘)
+
+**Q2. (반대로) 양자 회로는 *최소한* 고전 회로만큼 강력한가? (QC $\ge$ CC ?)**
+* **A: 예. 하지만 이를 보이려면 "가역성" 문제를 해결해야 합니다.**
+* 고전적인 AND 게이트를 양자 회로로 어떻게 구현할 수 있을까요?
+
+**Q3. 게이트의 종류가 중요한가?**
+* **A: 근본적으로 중요하지 않습니다.** {모든 1-큐비트 게이트 + CNOT 게이트} 조합이면 모든 Unitary 연산을 근사할 수 있습니다 (Universal gate set).
+
+---
+
+## Q2. 양자 회로는 고전 회로만큼 강력한가? (가역성 문제)
+
+### 1. 양자 게이트: 가역적 (Reversible)
+모든 양자 게이트 $U$는 Unitary ($UU^\dagger = I$)이며, 항상 역행렬($U^\dagger$)을 가집니다. 이는 출력을 알면 입력을 알 수 있음을 의미합니다.
+
+### 2. 고전 AND 게이트: 비가역적 (Irreversible)
+입력 (00, 01, 10)은 모두 동일한 출력 0을 만듭니다. 출력 0에서 입력을 복원할 수 없으며, 이 과정에서 **정보가 삭제(erase info)**됩니다.
+
+### 3. 물리적 고찰: Landauer의 원리 (정보 삭제와 에너지)
+**Landauer의 원리**에 따르면, 계산 단계 자체가 아니라 **"정보를 삭제(erasing info)"**하는 비가역적 과정이 근본적으로 **에너지(열)를 방출**해야 합니다.
+
+* **가역적 연산 (예: NOT):** 이론적으로 에너지 손실 없이 수행 가능합니다.
+* **비가역적 연산 (예: AND):** 정보를 잃고 엔트로피가 증가하므로, 반드시 열을 방출해야 합니다.
+
+### 4. 해법: 고전 가역 컴퓨팅 (Classical Reversible Computing)
+Charles Bennett 등은 **"보조 비트(Ancilla bits)"**를 사용하여 모든 고전적 연산을 가역적으로 수행할 수 있음을 보였습니다.
+
+---
+
+## 고전 연산의 가역적 구현 (예시)
+
+핵심 아이디어는 $y=F(x)$를 계산하는 대신, $U_F: |x\rangle |0\rangle \mapsto |x\rangle |F(x)\rangle$ 처럼 입력 $|x\rangle$를 보존하면서 답을 "복사"하는 것입니다.
+
+### 1. FANOUT (복제 / CNOT)
+고전 비트 $x$를 $x, x$로 복제하는 연산은 **CNOT 게이트**로 완벽하게 구현됩니다.
+
+* **연산:** $U_{\text{CNOT}}: |x\rangle |a\rangle \mapsto |x\rangle |a \oplus x\rangle$
+* **구현:** 보조 큐비트를 $|0\rangle$으로 초기화하면 ($a=0$),
+    * $U_{\text{CNOT}}: |x\rangle |0\rangle \mapsto |x\rangle |x\rangle$
+
+> **`quantee` 코드 스니펫 (CNOT Gate):**
+> ```yaml
+> ::: {quantee}
+> qcircuit:
+>   qubits: 2
+>   circuit:
+>     - CNOT: [0, 1] # 0번(제어), 1번(타겟)
+> :::
+> ```
+
+### 2. AND (논리곱 / Toffoli)
+**Toffoli (CCNOT) 게이트**를 사용합니다.
+
+* **연산:** $U_{\text{Toffoli}}: |x_1\rangle |x_2\rangle |a\rangle \mapsto |x_1\rangle |x_2\rangle |a \oplus (x_1 \land x_2)\rangle$
+* **구현:** 보조 큐비트를 $|0\rangle$으로 초기화하면 ($a=0$),
+    * $U_{\text{Toffoli}}: |x_1\rangle |x_2\rangle |0\rangle \mapsto |x_1\rangle |x_2\rangle |x_1 \land x_2\rangle$
+
+> **`quantee` 코드 스니펫 (Toffoli Gate):**
+> ```yaml
+> ::: {quantee}
+> qcircuit:
+>   qubits: 3
+>   circuit:
+>     - control: [0, 1]  # 0번, 1번 큐비트가 제어
+>       target: 2        # 2번 큐비트가 타겟
+>       gate: X          # (CC-X, 즉 Toffoli)
+> :::
+> ```
+
+### 3. OR (논리합 / De Morgan's Law)
+`OR` 게이트는 `AND`와 `NOT` 게이트를 조합하여 만들 수 있습니다. (드모르간의 법칙: $x_1 \lor x_2 = \neg (\neg x_1 \land \neg x_2)$) 이 또한 가역 게이트(X, Toffoli)의 조합으로 구현 가능합니다.
+
+---
+
+## 핵심 결론: 고전 회로의 효율적인 양자 시뮬레이션
+
+**정리 (Bennett, 1973):**
+> $G$개의 게이트를 가진 임의의 고전 회로 $C$는,
+> $O(G)$개의 가역 게이트를 사용하는 **가역 회로 $R.C.$** (따라서 양자 회로 $U_C$)로 **매우 효율적으로(very efficiently)** 변환될 수 있다.
+
+**최종 결론:** 이 변환은 효율적이므로(inefficient 하지 않다), **양자 컴퓨터(QC)는 모든 고전 컴퓨터(CC)의 연산을 효율적으로 시뮬레이션할 수 있습니다.**
+
+$$\text{QC} \ge \text{CC}$$
+
+---
+
+## 가역 회로의 함정: "쓰레기(Garbage)" 비트
+
+하지만 이 변환에는 치명적인 문제가 있습니다.
+$$U_C: |x\rangle_n |0\rangle_a \mapsto |x\rangle_n |F(x)\rangle_m |G(x)\rangle_{\text{garbage}}$$
+이 연산은 원하는 답 $|F(x)\rangle$ 외에, 연산 과정에서 발생한 부가 정보인 **"쓰레기(garbage)" 비트 $|G(x)\rangle$**를 생성합니다.
+
+## 양자 알고리즘의 진짜 문제: 쓰레기는 간섭(Interference)을 막는다
+
+양자 알고리즘의 핵심은 중첩과 간섭입니다. 하지만 쓰레기 비트는 이를 불가능하게 만듭니다.
+
+중첩 상태 $\frac{1}{\sqrt{2}}(|0\rangle + |1\rangle)$를 입력하면, 출력은 다음과 같은 **얽힌(entangled) 상태**가 됩니다:
+
+$$\frac{1}{\sqrt{2}} \left( |0\rangle |F(0)\rangle |G(0)\rangle + |1\rangle |F(1)\rangle |G(1)\rangle \right)$$
+
+* 만약 $G(0) \neq G(1)$이라면, $|G(0)\rangle$과 $|G(1)\rangle$은 서로 직교(orthogonal)합니다.
+* 이로 인해, 우리가 원하는 결과 큐비트 $|F(0)\rangle$과 $|F(1)\rangle$은 더 이상 서로 **간섭할 수 없습니다.**
+* 쓰레기 비트를 무시(trace out)하면, 결과 레지스터는 원하는 순수 중첩 상태($\frac{1}{\sqrt{2}}(|F(0)\rangle + |F(1)\rangle)$)가 아닌, 확률적인 **혼합 상태(mixed state)**가 되어버립니다.
+* **결론:** 쓰레기 비트는 양자 알고리즘의 핵심인 간섭 현상을 "망쳐버립니다(ruins things)".
+
+---
+
+## 쓰레기 되돌리기 (Uncomputing Garbage)
+
+이 문제를 해결하기 위해 **Bennett의 "Uncomputing" 트릭**을 사용합니다.
+
+### 1. 이상적인 연산 형태
+우리가 진정으로 원하는 "쓰레기 없는" 연산은 다음과 같습니다:
+$$U_F: |x\rangle_n |y\rangle_m \mapsto |x\rangle_n |y \oplus F(x)\rangle_m$$
+
+### 2. Bennett의 "Uncomputing" 트릭
+
+이 이상적인 연산은 다음 3단계로 구현할 수 있습니다.
+
+1.  **[Step 1] 계산 (Compute):** $F(x)$와 쓰레기 $G(x)$를 생성합니다.
+    * $|x\rangle |0\rangle_{\text{anc}} |0\rangle_{\text{out}} \xrightarrow{R_F} |x\rangle |G(x)\rangle_{\text{anc}} |F(x)\rangle_{\text{out}}$
+
+2.  **[Step 2] 답 복사 (Copy Answer):** CNOT을 사용해 $F(x)$를 새로운 "최종 답" 레지스터로 복사합니다.
+    * $|x\rangle |G(x)\rangle |F(x)\rangle |0\rangle_{\text{final}} \xrightarrow{\text{CNOTs}} |x\rangle |G(x)\rangle |F(x)\rangle |F(x)\rangle_{\text{final}}$
+
+3.  **[Step 3] 되돌리기 (Uncompute):** Step 1의 역연산($R_F^\dagger$)을 적용하여 쓰레기 $G(x)$와 중간 계산값 $F(x)$를 "삭제"하고 보조 큐비트를 $|0\rangle$으로 되돌립니다.
+    * $|x\rangle |G(x)\rangle |F(x)\rangle |F(x)\rangle_{\text{final}} \xrightarrow{R_F^\dagger} |x\rangle |0\rangle_{\text{anc}} |0\rangle_{\text{out}} |F(x)\rangle_{\text{final}}$
+
+**최종 결과:**
+$$|x\rangle |0 \dots 0\rangle \mapsto |x\rangle |0 \dots 0\rangle |F(x)\rangle_{\text{final}}$$
+
+* 우리는 **입력 $|x\rangle$와 깨끗한 답 $|F(x)\rangle$만**을 얻었고, 연산에 사용된 모든 "작업 공간(scratch space)"은 모두 $|0\rangle$으로 깔끔하게 초기화되었습니다.
+* **효율성:** 이 트릭은 게이트 수를 약 2배($\times 2$)로 늘리지만, 여전히 **효율적(efficient)**입니다.
+
+---
+
+## L10. 결론: 양자 회로의 고전 함수 계산법
+
+### 1. 표준 정의: "쓰레기 없는" XOR 연산
+
+"쓰레기" 문제를 해결했으므로, "양자 회로가 고전 함수 $F$를 계산한다"는 것을 다음과 같이 **표준적으로 정의**합니다.
+
+> **[정의]** 양자 회로 $U_F$는 다음 변환을 수행한다:
+> $$U_F: |x\rangle_n |y\rangle_m \mapsto |x\rangle_n |y \oplus F(x)\rangle_m$$
+
+### 2. 양자 병렬성 (Quantum Parallelism)
+
+이 표준 정의가 강력한 **진짜** 이유는 $|x\rangle$가 중첩 상태일 때 발생합니다.
+
+* $n$-큐비트 입력이 모든 가능한 입력의 **균등 중첩(uniform superposition)** 상태라고 가정해봅시다:
+    $$|\psi_{\text{in}}\rangle = \left( \frac{1}{\sqrt{2^n}} \sum_{x \in \{0,1\}^n} |x\rangle \right) |0\rangle_m$$
+
+* 여기에 $U_F$ 연산을 (단 한 번) 적용하면, $F(x)$가 **모든 $x$에 대해 동시에 계산**됩니다:
+    $$|\psi_{\text{out}}\rangle = U_F |\psi_{\text{in}}\rangle = \frac{1}{\sqrt{2^n}} \sum_{x \in \{0,1\}^n} |x\rangle |F(x)\rangle$$
+
+이것이 바로 **양자 병렬성(Quantum Parallelism)**입니다. $U_F$를 단 한 번만 실행함으로써, 우리는 $2^n$개의 모든 $F(x)$ 값을 포함하는 얽힌 중첩 상태를 얻었습니다.
+
+> **[L10의 핵심]**
+> 우리는 고전 함수 $F(x)$를 "쓰레기 없이" 중첩 상태에 적용하여 $|x\rangle |F(x)\rangle$의 거대한 얽힘 상태를 만드는 방법을 배웠습니다.
+>
+> **다음 강의(L11~)부터의 과제:** 어떻게 이 중첩 상태에서 유용한 정보(예: $F(x)$의 주기(period), 특정 패턴)를 *측정 없이* "추출(extract)"할 것인가? (이것이 바로 양자 푸리에 변환(QFT)과 같은 알고리즘이 하는 일입니다.)
