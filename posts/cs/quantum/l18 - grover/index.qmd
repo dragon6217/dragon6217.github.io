@@ -1,0 +1,159 @@
+---
+title: "L18. Grover's Algorithm"
+description: 'Shor의 "구조적" 주기 찾기와 달리, "비구조적(unstructured)" 검색 문제를 다룹니다. 고전 $O(N)$의 검색 복잡도를 $O(\sqrt{N})$으로 낮추는 "이차적(quadratic)" 양자 속도 향상을 보이며, 이는 BBBV "94 정리에 의해 최적(optimal)임이 증명되었습니다. "푸리에 샘플링"이 아닌 "진폭 증폭(Amplitude Amplification)"이라는 새로운 프레임워크를 기반으로 하며, $U_f$(오라클 반사)와 $U_s$(평균 반사)라는 두 연산을 $O(\sqrt{N})$번 반복하는 원리를 탐구합니다.'
+author: "Analysis by Gemini"
+date: "2025-11-02"
+categories: [Quantum Computing, Quantum Algorithms, Grover's Algorithm, Search, Complexity Theory]
+image: "images/cover.png"
+---
+
+## L18. Grover's Algorithm
+
+Shor의 알고리즘(L16)에 이어 두 번째로 유명한 양자 알고리즘이지만, Shor와는 근본적으로 다른 프레임워크에 기반합니다.
+
+* **Shor (HSP 패러다임):**
+    * **프레임워크:** **양자 푸리에 샘플링 (Quantum Fourier Sampling)** (L11-L17)
+    * **문제:** "주기성"이라는 **구조적 패턴(structured pattern)**을 찾습니다.
+    * **속도 향상:** **지수적 (Exponential)** (고전 $\exp(n)$ vs 양자 $poly(n)$)
+* **Grover (본 강의):**
+    * **프레임워크:** **진폭 증폭 (Amplitude Amplification)**
+    * **문제:** **"구조가 없는(unstructured)"** 순수 검색 문제를 다룹니다.
+    * **속도 향상:** "단지(merely)" **이차적 (Quadratic)** (고전 $O(N)$ vs 양자 $O(\sqrt{N})$)
+
+---
+
+### 1. 🎯 문제 정의: 비구조화된 검색 (The Unstructured Search Problem)
+
+**작업 (Task):**
+$N=2^n$개의 항목(bit)으로 구성된 거대한 "데이터베이스"가 있습니다. 이 데이터베이스는 불리언 함수(Boolean function) $F: \{0,1\}^n \to \{0,1\}$의 **"암시적(implicit)" 진리표**로 주어집니다.
+
+**목표 (Goal):**
+이 "데이터베이스"에서 $F(x)=1$을 만족하는 "표시된(marked)" 항목 $x$를 **찾는(find)** 것입니다.
+* (만약 "1"이 하나도 없다면, $K=0$임을 확신하고 "0"을 반환해야 합니다.)
+* **핵심:** $F$에는 Shor의 문제와 같은 **어떠한 "패턴"이나 "주기성"도 없습니다.**
+
+
+
+---
+
+### 2. 📦 계산 모델: 블랙박스 쿼리 모델 (Black-Box Query Model)
+
+이 문제를 분석하기 위해, 우리는 Shor/Simon과 동일한 **"블랙박스 쿼리 모델"**을 가정합니다.
+
+* **가정:** 우리는 $F$를 구현하는 회로(circuit) $C$ (오라클)를 받지만, 그 **내부 코드나 게이트를 들여다볼 수 없습니다(not allowed to look).**
+* **허용된 연산:** 우리는 오직 $C$에 입력을 넣고 출력을 받는 **"쿼리(query)" (사용)**만 할 수 있습니다.
+* **복잡도 척도:** 알고리즘의 효율성은 **"오라클 $C$를 몇 번 호출(query)했는가?"**로 측정됩니다.
+
+---
+
+### 3. 📈 쿼리 복잡도 비교: 고전 vs 양자
+
+**문제:** $N=2^n$개의 항목 중 $F(x)=1$인 "표시된" 항목 $x$ ( $K$개가 있다고 가정)를 찾는 데 필요한 오라클 $F$의 **호출(query) 횟수**는 몇 번인가?
+
+* **고전적 (Deterministic):** 최악의 경우 $O(N)$번.
+* **고전적 (Randomized):** $F(x)=1$인 것을 찾을 기대 횟수는 $O(N/K)$번입니다.
+    * $K=1$ (가장 어려운 경우) $\implies$ $O(N)$ 쿼리.
+* **양자 (Grover '96):**
+    * $K$개의 "1"이 있을 때, $K$개의 항목 중 하나를 높은 확률로 찾습니다.
+    * **쿼리 횟수: $O(\sqrt{N/K})$**
+
+#### 3.1. Grover의 속도 향상: 이차적 (Quadratic)
+* **Shor:** 고전 $O(2^n)$ $\to$ 양자 $O(n^3)$ (**지수적** 향상)
+* **Grover (K=1):** 고전 $O(N) = O(2^n)$ $\to$ 양자 $O(\sqrt{N}) = O(\sqrt{2^n}) \approx O(1.414^n)$
+    * 이는 $N$ (총 항목 수)의 관점에서는 **"이차적(quadratic) 속도 향상"**입니다.
+    * (사용자 노트: `Bigger K, faster Grover does it.`) 표시된 항목 $K$가 많을수록 $\sqrt{K}$배 더 빨라집니다.
+
+---
+
+### 4. 🔒 Grover 알고리즘의 최적성 (Optimality)
+
+**질문:** $O(\sqrt{N})$보다 더 빠를 수는 없는가? (예: Shor처럼 $O(poly(n))$ 시간에?)
+**답: 불가능하다.**
+
+> **[정리] (BBBV '94)**
+> "블랙박스 쿼리 모델"에서, 비구조화된 데이터베이스($N$개 항목)의 "표시된" 항목을 높은 확률로 찾기 위해서는, **어떤 양자 알고리즘이라도 *최소한* $\Omega(\sqrt{N})$번의 쿼리가 필요하다.**
+
+**결론:** Grover의 $O(\sqrt{N})$ 알고리즘은 이 $\Omega(\sqrt{N})$ 하한(lower bound)과 일치하므로, **(이차적 속도 향상이) 최선(optimal)**입니다.
+
+---
+
+### 5. 🤯 함의: 양자 컴퓨터와 NP-Complete 문제 (Implications for NP-Complete)
+
+이 "최적성" 증명(BBBV '94)은 **"양자 컴퓨터가 NP-Complete 문제를 효율적으로 풀 수 있는가?"**라는 질문(NP $\subseteq$ BQP?)에 대한 강력한 **"증거(evidence)"**를 제공합니다.
+
+* **Circuit-SAT (NP-Complete 문제):** "회로 $C$의 명세서(게이트 목록)를 *보고* $F(x)=1$인 $x$를 찾으시오."
+* **Grover (블랙박스 문제):** "회로 $C$를 *보지 못하고* $F(x)=1$인 $x$를 찾으시오."
+
+BBBV '94는 "보지 못하는" (더 쉬운) 문제조차 $\Omega(\sqrt{N})$ (지수적 시간)이 필요함을 증명했습니다. 이는 "보고 푸는" (더 어려운) NP-Complete 문제가 $poly(n)$ 시간에 풀릴 수 없을 것(즉, **NP $\not\subseteq$ BQP**)이라는 강력한 정황 증거입니다. (이는 Shor의 알고리즘이 P $\neq$ BQP (아마도)를 시사하는 것과 대조됩니다.)
+
+
+
+---
+
+### 6. ❌ 왜 "푸리에 샘플링" (HSP) 패러다임은 검색에 실패하는가?
+
+Shor의 $H-V_F-H$ (Rotate-Compute-Rotate) 패러다임을 $K=1$ (표시된 항목이 1개, $x^*$)인 검색 문제에 적용해 보겠습니다.
+
+1.  **[Rotate 1 ($H^{\otimes n}$)]:** $|+\rangle = \frac{1}{\sqrt{N}} \sum_x |x\rangle$
+2.  **[Compute ($V_F$)]:** $|f\rangle = V_F |+\rangle = \frac{1}{\sqrt{N}} \left( \sum_{x \neq x^*} |x\rangle - |x^*\rangle \right)$
+3.  **[Rotate 2 ($H^{\otimes n}$)]:** $|\psi_{\text{final}}\rangle = H^{\otimes n} |f\rangle = \sum_s \tilde{f}(s) |s\rangle$
+
+**결과 (실패):**
+* L12에서 배웠듯이, $\tilde{f}(0)$ (푸리에 계수 $s=0$)은 데이터의 **평균(average) $\mu$**입니다.
+    * $\mu = \text{avg}(f(x)) = \frac{(N-1) \cdot (+1) + 1 \cdot (-1)}{N} = \frac{N-2}{N} \approx 1$
+* **거의 모든( $\approx 100\%$ ) 확률이 $s=0...0$에 쏠려 있습니다.**
+* 이 상태를 측정하면 **거의 100% 확률로 $s=0...0$** (평균값)이 나오며, 이는 $x^*$의 위치에 대한 **아무런 정보도 주지 않습니다.**
+
+---
+
+### 7. 💡 Grover의 "진짜" 아이디어: 진폭 증폭 (Amplitude Amplification)
+
+Shor의 패러다임이 $x^*$의 "위치" 정보를 "주파수" 공간으로 변환하는 데 실패했기 때문에, Grover는 "진폭"을 직접 증폭하는 **"진폭 증폭(Amplitude Amplification)"**이라는 완전히 다른 접근을 사용합니다.
+
+* **Grover의 아이디어:** $U_f$ (오라클 반사)와 $U_s$ (평균 반사)라는 **두 개의 "반사(reflection)"** 연산을 **$T = O(\sqrt{N})$번 반복(iterate)**하여 $|x^*\rangle$의 진폭을 "펌핑"합니다.
+
+$$|\psi_{\text{final}}\rangle = (U_s \cdot U_f)^T |+\rangle$$
+
+---
+
+### 8. Q1 & Q2: Grover의 메커니즘 (How? and Why?)
+
+#### 8.1. 연산자 1: $U_f$ (Oracle / "Compute")
+* **목적:** "표시된" 항목 $x^*$의 위상만 뒤집습니다(flip). (L11의 "부호 오라클")
+* **정의:** $U_f: |x\rangle \mapsto (-1)^{F(x)} |x\rangle$
+* **비용:** $Q_F$ 오라클 1회 호출.
+
+#### 8.2. 연산자 2: $U_s$ (Grover Diffusion / "Rotate")
+* **목적:** 모든 $x$의 진폭을 **전체 진폭의 평균($\mu$)**에 대해 "반사(reflect)"시킵니다.
+* **구현:** $U_s = H^{\otimes n} \cdot U_0 \cdot H^{\otimes n}$
+    1.  **$H^{\otimes n}$:** 계산 기저($x$)에서 푸리에 기저($s$)로 회전.
+    2.  **$U_0 = 2|0\rangle\langle 0| - I$:** $|0...0\rangle$ 상태를 *제외한* **다른 모든 상태($s \neq 0$)**의 위상을 **-1로 뒤집습니다.** ($Q_{OR}$ 회로로 구현)
+    3.  **$H^{\otimes n}$:** 다시 계산 기저($x$)로 회전.
+
+#### 8.3. 진폭 증폭의 원리 (Why? - $K=1$ 기준)
+(사용자 노트의 `(1/sqrtN) -> (3/sqrtN) -> (5/sqrtN)` 분석)
+
+
+
+1.  **[시작] $T=0$:** $\text{Amp}(x^*) = 1/\sqrt{N}$. (평균 $\mu \approx 1/\sqrt{N}$)
+2.  **[Iter. 1]:**
+    * **(a) $U_f$ 적용 (Oracle):** $\text{Amp}(x^*) \to -1/\sqrt{N}$. (평균 $\mu'$가 약간 낮아짐)
+    * **(b) $U_s$ 적용 (Reflect across mean $\mu'$):** $x^*$의 진폭($-1/\sqrt{N}$)은 평균 $\mu'$보다 훨씬 아래에 있으므로, 반사되어 $\approx \mathbf{3/\sqrt{N}}$로 솟구칩니다.
+3.  **[Iter. 2]:**
+    * **(a) $U_f$ 적용 (Oracle):** $\text{Amp}(x^*) \to -3/\sqrt{N}$.
+    * **(b) $U_s$ 적용 (Reflect across mean $\mu''$):** $\text{Amp}(x^*) \approx \mathbf{5/\sqrt{N}}$로 증폭됩니다.
+4.  **[Iter. T]:** $T$회 반복 후, $\text{Amp}(x^*) \approx \frac{2T+1}{\sqrt{N}}$ 입니다.
+
+---
+
+### 9. 🛑 최적의 반복 횟수와 "과회전" 경고
+
+* **최적 반복 (Optimal Iterations):**
+    $\text{Amp}(x^*)$가 $1$에 가까워질 때 중단해야 합니다.
+    $$T_{\text{opt}} \approx \frac{\pi}{4}\sqrt{N/K}$$
+    ($K=1$일 때 $T_{\text{opt}} \approx \frac{\pi}{4}\sqrt{N} \approx 0.78 \sqrt{N}$)
+* **측정:** $T_{\text{opt}}$번 반복 후, 상태를 **측정(Measure)**하면 $x^*$ (또는 "1" 중 하나)를 **매우 높은 확률**로 얻습니다.
+* **경고: "과회전" (Overshooting):**
+    (사용자 노트: `If you are not careful, the ampl. can actually start going down.`)
+    Grover의 알고리즘은 $T_{\text{opt}}$보다 **더 많이** 반복하면, 진폭이 $1$을 "지나쳐" 다시 $0$을 향해 줄어들어 성공 확률이 낮아집니다.
+* **최종 확인:** $O(\sqrt{N/K})$번의 쿼리로 찾은 $x'$가 정말 $F(x')=1$인지 확인하기 위해, **고전적으로 1번의 쿼리**를 추가로 수행하여 검증(verify)합니다.
