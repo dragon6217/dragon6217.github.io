@@ -1,0 +1,156 @@
+---
+title: "L12. Revealing XOR-patterns II (Boolean Fourier Transform)"
+description: "L11의 H-V-H 알고리즘을 '푸리에 샘플링'이라는 일반적인 프레임워크로 확장합니다. 데이터 벡터와 양자 상태의 관계(정규화)를 정의하고, Boolean Fourier Transform (BFT)의 기저가 되는 'XOR-패턴' $\{|\chi_s\rangle\}$의 직교성을 증명합니다. BFT 계수가 '상관관계'임을 보이고, Bernstein-Vazirani와 Simon 알고리즘을 통해 양자 우월성의 진정한 의미(지수적 분리)를 탐구합니다."
+author: "Analysis by Gemini"
+date: "2025-11-02"
+categories: [Quantum Computing, Quantum Algorithms, Fourier Transform, Bernstein-Vazirani, Simon's Algorithm]
+image: "images/cover.png"
+---
+
+## L12. Revealing XOR-patterns II
+
+이번 강의는 **"암시적으로 표현된 데이터(implicitly-represented data)"**에서 **패턴을 찾는 것**이라는 양자 컴퓨팅의 핵심 주제를 다룹니다.
+
+### 1. 데이터 표현: 고전적 vs 양자적
+
+$N=2^n$ ($n$은 큐비트 수)이라고 할 때, 우리의 "데이터"는 $\mathbb{C}^N$ 공간의 벡터 $|g\rangle$입니다.
+
+* **고전적(Classical) 관점:** 데이터의 크기 $N$은 "물리적 크기"이며, $|g\rangle$는 $N$개의 항목을 가진 명시적인(explicit) 벡터입니다.
+* **양자적(Quantum) 관점:** 큐비트 수 $n$이 "물리적 크기"입니다. 데이터 $|g\rangle$는 $n$개의 큐비트로 표현된 **"양자 상태(quantum state)"**이며, $N=2^n$개의 데이터 항목(진리표)은 이 상태의 **진폭(amplitude)**에 "암시적으로" 저장됩니다.
+    $$|g\rangle = \sum_{x \in \{0,1\}^n} g(x) |x\rangle$$
+
+### 2. 패턴 찾기: 기저 변환 (Change of Basis)
+
+"데이터 처리" 또는 "패턴 찾기"는 본질적으로 이 데이터 벡터 $|g\rangle$를 표준 기저 $\{|x\rangle\}$에서 다른 **"패턴 기저(pattern basis)"** $\{|\chi_s\rangle\}$로 변환하는 것입니다.
+
+데이터 $|g\rangle$를 이 새로운 "패턴 기저"로 전개할 수 있습니다.
+$$|g\rangle = \sum_{s \in \{0,1\}^n} \tilde{g}(s) |\chi_s\rangle$$
+
+여기서 계수 $\tilde{g}(s) = \langle \chi_s | g \rangle$는 데이터 $|g\rangle$에 $s$번째 패턴이 **얼마나 많이(strength)** 포함되어 있는지를 나타냅니다.
+
+### 3. 양자 푸리에 변환 (Quantum Fourier Transform)
+
+양자 회로 $U_{\text{FT}}$의 역할은 이 "Strength" $\tilde{g}(s)$를 계산하는 것입니다. 즉, $|g\rangle$ 상태를 입력받아, $\tilde{g}(s)$를 진폭으로 갖는 상태로 변환합니다.
+$$U_{\text{FT}}: |g\rangle = \sum_x g(x) |x\rangle \mapsto |\tilde{g}\rangle = \sum_s \tilde{g}(s) |s\rangle$$
+
+이 강의 시리즈에서는 두 가지 핵심적인 푸리에 변환을 다룹니다.
+
+1.  **오늘의 주제: Boolean Fourier Transform (BFT)**
+    * **패턴:** "XOR-patterns"
+    * **변환 $U_{\text{FT}}$:** **Hadamard Transform ($H^{\otimes n}$)**
+    * **효율성:** 매우 효율적입니다. (각 큐비트에 $H$ 게이트 1개 적용)
+2.  **이후 주제: Discrete Fourier Transform (DFT)**
+    * **패턴:** "주기성(Periodicity)" (Number Theory)
+    * **변환 $U_{\text{FT}}$:** **Quantum Fourier Transform (QFT)**
+    * **활용:** Shor의 인수분해 알고리즘.
+
+---
+
+### 4. 정규화 문제 (Normalization)와 표기법
+
+"데이터"를 다룰 때, (1) 함수 $f(x)$, (2) 벡터 $f$, (3) 양자 상태 $|g\rangle$를 구분해야 합니다.
+
+* **부호 벡터 (Sign Vector):** $f(x) = (-1)^{F(x)}$ 값들의 벡터 $f$는 노름(norm) 제곱이 $\sum |f(x)|^2 = N$ 입니다.
+* **양자 상태 (Quantum State):** $|g\rangle$는 노름 제곱이 $\sum |g(x)|^2 = 1$ 이어야 합니다.
+
+따라서 함수 $f(x)$의 정보를 "로드"한 양자 상태는 $f$를 정규화(normalize)한 것이어야 합니다.
+
+> **[정의] 함수의 양자 상태 표현**
+> "부호 벡터" $f$에 해당하는 (정규화된) 양자 상태 $|g\rangle$는 다음과 같습니다.
+> $$|g\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} f(x) |x\rangle$$
+
+(L11에서 $H-V_F-H$의 2단계 결과물이 바로 이 상태였습니다.)
+
+---
+
+### 5. "XOR-패턴 기저" (Boolean Fourier Basis)
+
+L11의 알고리즘은 BFT를 이용한 "기저 변환"으로 재해석할 수 있습니다. BFT의 "패턴 기저" $\{|\chi_s\rangle\}$는 다음과 같이 정의됩니다.
+
+**1. 패턴 함수 (Pattern Function):**
+$$\chi_s(x) = (-1)^{s \cdot x} = (-1)^{\sum_i s_i x_i \pmod 2}$$
+
+**2. 패턴 기저 벡터 (Pattern Basis Vector):**
+$$|\chi_s\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} \chi_s(x) |x\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} (-1)^{s \cdot x} |x\rangle$$
+
+* **(L11의 발견)** L11의 증명 과정 $\left( |\psi_{\text{final}}\rangle = H^{\otimes n} |\psi_1\rangle \right)$에서, 우리는 $|\psi_1\rangle = |\chi_{s^*}\rangle$ 이고 $|\psi_{\text{final}}\rangle = |s^*\rangle$ 임을 보였습니다. 즉, $H^{\otimes n} |\chi_s\rangle = |s\rangle$ 입니다.
+* **(L12의 발견)** $H^{\otimes n}$은 그 자체가 역변환($H^{\otimes n}H^{\otimes n}=I$)이므로, $H^{\otimes n} |s\rangle = |\chi_s\rangle$ 또한 성립합니다.
+* **결론:** BFT($H^{\otimes n}$)는 표준 기저 $\{|s\rangle\}$와 XOR-패턴 기저 $\{|\chi_s\rangle\}$ 사이를 변환하는 연산자입니다.
+
+#### 5.1. "XOR-패턴 기저"의 직교정규성 (Orthonormality) 증명
+
+$|\chi_s\rangle$ 벡터들이 직교정규 기저($\langle \chi_{s_1} | \chi_{s_2} \rangle = \delta_{s_1, s_2}$)를 이루는지 확인합니다.
+$$\langle \chi_{s_1} | \chi_{s_2} \rangle = \frac{1}{N} \sum_x (-1)^{s_1 \cdot x} (-1)^{s_2 \cdot x} = \frac{1}{N} \sum_x (-1)^{(s_1 \oplus s_2) \cdot x}$$
+
+* **Case 1: $s_1 = s_2$ (정규성)**
+    * $s_1 \oplus s_2 = 0$ 이므로, 합은 $\frac{1}{N} \sum_x (-1)^0 = \frac{N}{N} = 1$ 입니다.
+* **Case 2: $s_1 \neq s_2$ (직교성)**
+    * $s' = s_1 \oplus s_2 \neq 0$ 입니다. $s' \cdot x$는 $N$개의 $x$ 중 정확히 절반(N/2)에 대해 0이고 절반(N/2)에 대해 1입니다.
+    * 따라서 $\sum_x (-1)^{s' \cdot x}$는 $(N/2)$개의 $(+1)$과 $(N/2)$개의 $(-1)$의 합이므로 0입니다.
+* **결론:** $\{|\chi_s\rangle\}$는 직교정규(orthonormal) 기저입니다.
+
+---
+
+### 6. 푸리에 샘플링 패러다임 (The Fourier Sampling Paradigm)
+
+L11과 L12의 내용을 종합하여, 강력하고 일반적인 **"푸리에 샘플링"** 패러다임을 정의할 수 있습니다.
+
+
+
+**알고리즘 3단계:**
+
+1.  **[LOAD DATA] (1+2단계):**
+    * $H^{\otimes n}$과 $V_F$ 오라클(칩)을 1회 사용하여 $n$ 큐비트 상태에 $N=2^n$ 크기의 "데이터" $f(x)$를 진폭으로 로드합니다.
+    * $$|f\rangle = \frac{1}{\sqrt{N}} \sum_{x \in \{0,1\}^n} f(x) |x\rangle$$
+
+2.  **[Apply BFT] (3단계):**
+    * "데이터 상태" $|f\rangle$에 BFT($H^{\otimes n}$)를 적용하여 "푸리에 상태" $|\tilde{f}\rangle$를 만듭니다.
+    * $$|\psi_{\text{final}}\rangle = H^{\otimes n} |f\rangle = \sum_{s \in \{0,1\}^n} \tilde{f}(s) |s\rangle$$
+
+3.  **[Measure] (4단계):**
+    * 최종 상태를 측정합니다.
+
+#### 6.1. BFT 계수의 의미 = 상관관계 (Correlation)
+"푸리에 상태"의 진폭 $\tilde{f}(s)$는 데이터 $f$와 패턴 $\chi_s$의 **상관관계(correlation)**입니다.
+$$\tilde{f}(s) = \langle \chi_s | f \rangle = \frac{1}{N} \sum_x f(x) \chi_s(x)$$
+* $\tilde{f}(s) = (\text{Frac. of } x\text{'s where } f(x) = \chi_s(x)) - (\text{Frac. of } x\text{'s where } f(x) \neq \chi_s(x))$
+
+#### 6.2. 푸리에 샘플링의 결론
+최종 상태 $|\psi_{\text{final}}\rangle = \sum_s \tilde{f}(s) |s\rangle$ 를 측정하면,
+> **측정 결과 $s$가 나올 확률은 $P(s) = |\tilde{f}(s)|^2$ 입니다.**
+
+즉, 푸리에 샘플링은 **"데이터 $f(x)$와 가장 상관관계가 높은 패턴 $s$를 그 상관관계의 제곱에 비례하는 확률로 샘플링"**하는 물리적 절차입니다.
+
+* **장점:** $n$ 큐비트로 $N=2^n$ 크기의 데이터를 처리하는 지수적 효율성.
+* **단점:** 전체 푸리에 스펙트럼 $\tilde{f}(s)$를 얻는 것이 아니라, 단 하나의 $s$만 샘플링됩니다.
+
+---
+
+### 7. 양자 우월성 (Quantum Advantage)
+
+이 "푸리에 샘플링" 트릭이 고전 컴퓨터보다 얼마나 강력한지 오라클 문제를 통해 비교할 수 있습니다.
+
+#### 7.1. Bernstein-Vazirani (BV) 알고리즘 (L11)
+* **문제:** $F(x) = s^* \cdot x$ (즉 $f = \chi_{s^*}$)일 때 $s^*$를 찾으시오.
+* **고전 (CC):** $s^*$의 $n$개 비트를 알기 위해 **$n$번의 오라클 호출**이 필요합니다.
+* **양자 (QC):** $f$와 $\chi_{s^*}$의 상관관계가 완벽히 1 ($\tilde{f}(s^*) = 1$)이므로, 푸리에 샘플링(H-V-H)을 하면 **단 1번의 호출**로 $100\%$ 확률로 $s^*$를 얻습니다.
+* **결과:** $n$ vs $1$ (다항식 vs 상수)
+
+#### 7.2. Simon의 알고리즘 (L13 예고)
+* **문제:** $F(x) = F(y) \iff y = x \oplus s^*$ 일 때 $s^*$를 찾으시오.
+* **고전 (CC):** $s^*$를 찾으려면 약 $2^{n/2}$ (즉, $\sqrt{N}$) 번의 호출이 필요합니다. (**지수적 시간**)
+* **양자 (QC):** $H-V-F-H$와 유사한 구조를 통해 **$O(n)$번 (다항식 시간)**의 호출만으로 $s^*$를 높은 확률로 찾을 수 있습니다.
+* **결과:** $2^{n/2}$ vs $n$ (**지수적 vs 다항식**)
+
+Simon의 알고리즘은 **고전 지수 시간 vs 양자 다항 시간**이라는 **진정한 지수적 분리(separation)**를 보여줍니다.
+
+#### 7.3. "미스터리 칩"의 진정한 의미
+BV나 Simon의 "미스터리 칩(오라클)" 시나리오는 꾸며낸 듯(contrived) 보일 수 있습니다.
+하지만 **Shor의 알고리즘**에서는 "미스터리 칩"을 **우리 자신이 직접 만듭니다.**
+
+* **Shor:** 우리는 $F(x) = a^x \pmod N$ 회로를 직접 만듭니다.
+* 우리는 이 회로의 **"주기성"**이라는 속성을 모릅니다.
+* 우리는 우리가 만든 이 회로를 "오라클"처럼 사용하여 푸리에 샘플링(QFT)을 **다항식($O(n^k)$) 횟수**만큼 호출하여 그 "주기"를 찾아냅니다.
+* 고전적으로는 이 "주기"를 찾는 데 **지수적 시간**이 걸립니다.
+
+**최종 결론:** 양자 알고리즘(푸리에 샘플링)을 이용하면, 우리가 직접 만든 회로의 글로벌 속성(패턴, 주기)을 고전적으로는 불가능한(지수적인) 속도(다항식)로 파악해낼 수 있습니다.
