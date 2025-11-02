@@ -6,8 +6,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="Analysis by Gemini">
+<meta name="dcterms.date" content="2025-11-02">
+<meta name="description" content="지금까지 배운 모든 효율적인 양자 알고리즘(Bernstein-Vazirani, Simon, Shor)을 ‘숨겨진 부분군 문제(HSP)’라는 단일 프레임워크로 일반화합니다. HSP를 ’그룹 G의 숨겨진 부분군 H를 찾는 문제’로 공식 정의하고, ’아벨 그룹(Abelian)’ HSP가 효율적으로 풀리는 이유(QFT + 고전 후처리)와 ‘비-아벨 그룹(Non-Abelian)’ HSP가 미해결 난제로 남은 이유(고전 후처리 병목)를 탐구합니다.">
 
-<title>index – dragon6217.github.io</title>
+<title>L17. The Hidden Subgroup Problem (HSP) – dragon6217.github.io</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -69,6 +72,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../../../styles.css">
 </head>
@@ -122,17 +154,239 @@ ul.task-list li input[type="checkbox"] {
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#l17.-the-hidden-subgroup-problem-hsp" id="toc-l17.-the-hidden-subgroup-problem-hsp" class="nav-link active" data-scroll-target="#l17.-the-hidden-subgroup-problem-hsp">L17. The Hidden Subgroup Problem (HSP)</a>
+  <ul class="collapse">
+  <li><a href="#핵심-아이디어-모든-것을-아우르는-일반화" id="toc-핵심-아이디어-모든-것을-아우르는-일반화" class="nav-link" data-scroll-target="#핵심-아이디어-모든-것을-아우르는-일반화">1. 🧩 핵심 아이디어: 모든 것을 아우르는 일반화</a></li>
+  <li><a href="#hsp의-공식-정의-수학적-배경" id="toc-hsp의-공식-정의-수학적-배경" class="nav-link" data-scroll-target="#hsp의-공식-정의-수학적-배경">2. 📖 HSP의 공식 정의 (수학적 배경)</a></li>
+  <li><a href="#hsp의-중요성-3대-질문" id="toc-hsp의-중요성-3대-질문" class="nav-link" data-scroll-target="#hsp의-중요성-3대-질문">3. 🔑 HSP의 중요성: 3대 질문</a></li>
+  <li><a href="#비-아벨-hsp의-병목-고전적-후처리-the-non-abelian-bottleneck" id="toc-비-아벨-hsp의-병목-고전적-후처리-the-non-abelian-bottleneck" class="nav-link" data-scroll-target="#비-아벨-hsp의-병목-고전적-후처리-the-non-abelian-bottleneck">4. 🚧 비-아벨 HSP의 병목: “고전적 후처리” (The Non-Abelian Bottleneck)</a></li>
+  <li><a href="#hsp에-대한-대안적-관점-양자-가설-검정-quantum-hypothesis-testing" id="toc-hsp에-대한-대안적-관점-양자-가설-검정-quantum-hypothesis-testing" class="nav-link" data-scroll-target="#hsp에-대한-대안적-관점-양자-가설-검정-quantum-hypothesis-testing">5. 💡 HSP에 대한 대안적 관점: 양자 가설 검정 (Quantum Hypothesis Testing)</a></li>
+  </ul></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">L17. The Hidden Subgroup Problem (HSP)</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Quantum Computing</div>
+    <div class="quarto-category">Quantum Algorithms</div>
+    <div class="quarto-category">HSP</div>
+    <div class="quarto-category">Group Theory</div>
+    <div class="quarto-category">Shor's Algorithm</div>
+    <div class="quarto-category">Simon's Algorithm</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    지금까지 배운 모든 효율적인 양자 알고리즘(Bernstein-Vazirani, Simon, Shor)을 ‘숨겨진 부분군 문제(HSP)’라는 단일 프레임워크로 일반화합니다. HSP를 ’그룹 G의 숨겨진 부분군 H를 찾는 문제’로 공식 정의하고, ’아벨 그룹(Abelian)’ HSP가 효율적으로 풀리는 이유(QFT + 고전 후처리)와 ‘비-아벨 그룹(Non-Abelian)’ HSP가 미해결 난제로 남은 이유(고전 후처리 병목)를 탐구합니다.
+  </div>
+</div>
 
 
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Analysis by Gemini </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 2, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
 
 
+</header>
 
 
+<section id="l17.-the-hidden-subgroup-problem-hsp" class="level2">
+<h2 class="anchored" data-anchor-id="l17.-the-hidden-subgroup-problem-hsp">L17. The Hidden Subgroup Problem (HSP)</h2>
+<section id="핵심-아이디어-모든-것을-아우르는-일반화" class="level3">
+<h3 class="anchored" data-anchor-id="핵심-아이디어-모든-것을-아우르는-일반화">1. 🧩 핵심 아이디어: 모든 것을 아우르는 일반화</h3>
+<p><strong>숨겨진 부분군 문제(Hidden Subgroup Problem, HSP)</strong>는 우리가 지금까지 배운 모든 주요 양자 알고리즘(Bernstein-Vazirani, Simon, Shor/Period-Finding)을 아우르는 매우 강력하고 일반적인 <strong>통합 프레임워크(generalization)</strong>입니다.</p>
+<p>이 문제들은 모두 “어떤 함수 <span class="math inline">\(F\)</span>의 숨겨진 대칭성(패턴)”을 찾는 문제이며, <strong>“양자 푸리에 샘플링(Quantum Fourier Sampling)”</strong>이라는 동일한 패러다임을 사용하여 효율적으로 해결됩니다.</p>
+<p>우리가 배운 알고리즘들은 모두 “어떤 <strong>그룹(Group) <span class="math inline">\(G\)</span></strong>의 숨겨진 <strong>부분군(Subgroup) <span class="math inline">\(H\)</span></strong>를 찾는 문제”로 일반화될 수 있습니다.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">알고리즘 (Lec.)</th>
+<th style="text-align: left;">그룹 (Group <span class="math inline">\(G\)</span>)</th>
+<th style="text-align: left;">함수 <span class="math inline">\(F: G \to \text{COLORS}\)</span></th>
+<th style="text-align: left;">약속 (Promise) / 구조</th>
+<th style="text-align: left;">목표 (Find)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Bernstein-Vazirani</strong> (L11-12)</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbb{Z}_2^n\)</span> (XOR)</td>
+<td style="text-align: left;"><span class="math inline">\(F: \mathbb{Z}_2^n \to \{0,1\}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(F(x) = s \cdot x\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(s\)</span> 찾기 (Dual group)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Simon’s</strong> (L13)</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbb{Z}_2^n\)</span> (XOR)</td>
+<td style="text-align: left;"><span class="math inline">\(F: \mathbb{Z}_2^n \to \text{COLORS}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(F(x) = F(x \oplus L)\)</span> (2-to-1)</td>
+<td style="text-align: left;"><span class="math inline">\(H = \{0, L\}\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Period-Finding</strong> (L15)</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbb{Z}_N\)</span> (Arithmetic)</td>
+<td style="text-align: left;"><span class="math inline">\(F: \mathbb{Z}_N \to \text{COLORS}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(F(x) = F(x+L \pmod N)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(H = \langle L \rangle\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Shor’s (현실)</strong> (L16)</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbb{Z}\)</span> (Integers)</td>
+<td style="text-align: left;"><span class="math inline">\(F: \mathbb{Z} \to \text{COLORS}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(F(x) = F(x+L)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(H = \langle L \rangle\)</span></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="hsp의-공식-정의-수학적-배경" class="level3">
+<h3 class="anchored" data-anchor-id="hsp의-공식-정의-수학적-배경">2. 📖 HSP의 공식 정의 (수학적 배경)</h3>
+<p>HSP를 정의하기 위해, “그룹”, “부분군”, “잉여류”라는 세 가지 수학적 용어가 필요합니다.</p>
+<section id="그룹-group" class="level4">
+<h4 class="anchored" data-anchor-id="그룹-group">2.1. 그룹 (Group)</h4>
+<p>그룹 <span class="math inline">\((G, *)\)</span>는 <strong>집합 <span class="math inline">\(G\)</span></strong>와 결합법칙/항등원/역원을 만족하는 <strong>이항 연산 <span class="math inline">\(* **\)</span>의 쌍입니다. * </strong>아벨 그룹 (Abelian):** <span class="math inline">\(x * y = y * x\)</span> (교환법칙 성립). <strong>(HSP가 쉬운 경우)</strong> * 예: <span class="math inline">\((\mathbb{Z}_2^n, \oplus)\)</span>, <span class="math inline">\((\mathbb{Z}_N, +)\)</span>, <span class="math inline">\((\mathbb{Z}_M^*, \times)\)</span> * <strong>비-아벨 그룹 (Non-Abelian):</strong> <span class="math inline">\(x * y \neq y * x\)</span> (교환법칙 성립 안 함). <strong>(HSP가 어려운 경우)</strong> * 예: <span class="math inline">\(S_n\)</span> (대칭 그룹, 순열 합성), <span class="math inline">\(D_N\)</span> (이명박 그룹, 도형 대칭)</p>
+</section>
+<section id="부분군-subgroup" class="level4">
+<h4 class="anchored" data-anchor-id="부분군-subgroup">2.2. 부분군 (Subgroup)</h4>
+<p><strong>부분군 <span class="math inline">\(H \le G\)</span></strong>는 <span class="math inline">\(G\)</span>의 부분집합이면서, <span class="math inline">\(G\)</span>의 연산 <span class="math inline">\(*\)</span>에 대해 그 자체로도 그룹을 이루는 집합입니다. * (L13) <span class="math inline">\(G = \mathbb{Z}_2^n\)</span>, <span class="math inline">\(H = \langle L \rangle = \{0, L\}\)</span> * (L15) <span class="math inline">\(G = \mathbb{Z}_{24}\)</span>, <span class="math inline">\(H = \langle 4 \rangle = \{0, 4, 8, 12, 16, 20\}\)</span></p>
+</section>
+<section id="잉여류-coset" class="level4">
+<h4 class="anchored" data-anchor-id="잉여류-coset">2.3. 잉여류 (Coset)</h4>
+<p><strong>잉여류 <span class="math inline">\(x * H\)</span></strong>는 부분군 <span class="math inline">\(H\)</span>를 그룹 <span class="math inline">\(G\)</span>의 다른 원소 <span class="math inline">\(x\)</span>를 이용해 “이동(translate)”시킨 <strong>“복사본”</strong>입니다. (<span class="math inline">\(x * H = \{x * h \mid h \in H\}\)</span>) * 그룹 <span class="math inline">\(G\)</span>는 <span class="math inline">\(H\)</span>의 <strong>서로소인(disjoint) 잉여류들로 완벽하게 분할(partition)</strong>됩니다. * (L15) <span class="math inline">\(G = \mathbb{Z}_{24}, H = \langle 4 \rangle\)</span>일 때, 잉여류는 <span class="math inline">\(0+H, 1+H, 2+H, 3+H\)</span> 4개입니다.</p>
+<hr>
+<blockquote class="blockquote">
+<p><strong>[정의] 숨겨진 부분군 문제 (HSP) for <span class="math inline">\(G\)</span></strong></p>
+<ol type="1">
+<li><strong>입력 (Given):</strong> 그룹 <span class="math inline">\(G\)</span>와, “<span class="math inline">\(H\)</span>-주기” 함수 <span class="math inline">\(F: G \to \text{COLORS}\)</span>를 구현하는 <strong>양자 오라클 <span class="math inline">\(Q_F\)</span></strong>.</li>
+<li><strong>약속 (Promise):</strong> <span class="math inline">\(F\)</span>는 <span class="math inline">\(G\)</span>의 <strong>“숨겨진 부분군” <span class="math inline">\(H \le G\)</span></strong>에 대해 다음을 만족합니다. <strong><span class="math inline">\(F(x) = F(y) \iff y \in x*H\)</span></strong> (즉, <span class="math inline">\(F\)</span>는 <span class="math inline">\(H\)</span>의 <strong>각 잉여류(coset) 내에서 상수</strong>이며, 잉여류 간에는 값이 다릅니다.)</li>
+<li><strong>목표 (Goal):</strong> <span class="math inline">\(Q_F\)</span>를 다항식 횟수만큼 호출하여, <span class="math inline">\(H\)</span>의 <strong>생성자 집합(generating set)</strong>을 찾으시오.</li>
+</ol>
+</blockquote>
+<hr>
+</section>
+</section>
+<section id="hsp의-중요성-3대-질문" class="level3">
+<h3 class="anchored" data-anchor-id="hsp의-중요성-3대-질문">3. 🔑 HSP의 중요성: 3대 질문</h3>
+<section id="q1.-hsp를-풀면-유용한가-applications" class="level4">
+<h4 class="anchored" data-anchor-id="q1.-hsp를-풀면-유용한가-applications">3.1. ❓ Q1. HSP를 풀면 유용한가? (Applications)</h4>
+<p><strong>네, 매우 유용합니다.</strong> 많은 중요 문제들이 HSP로 환원될 수 있습니다.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">HSP over Group (G)</th>
+<th style="text-align: left;">G가 아벨 (Abelian)?</th>
+<th style="text-align: left;">“실제” 응용 문제 (HSP로 환원 가능)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong><span class="math inline">\(\mathbb{Z}_N\)</span> / <span class="math inline">\(\mathbb{Z}\)</span></strong> (덧셈)</td>
+<td style="text-align: left;"><strong>예</strong></td>
+<td style="text-align: left;"><strong>인수분해 (Factoring)</strong> (RSA 암호)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong><span class="math inline">\(\mathbb{Z}_{P-1} \times \mathbb{Z}_{P-1}\)</span></strong> (덧셈)</td>
+<td style="text-align: left;"><strong>예</strong></td>
+<td style="text-align: left;"><strong>이산 로그 (Discrete Log)</strong> (Diffie-Hellman, El Gamal 암호)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="math inline">\(S_n\)</span> (Symmetric Group)</td>
+<td style="text-align: left;">아니오 (Non-Abelian)</td>
+<td style="text-align: left;"><strong>그래프 동형 (Graph Isomorphism)</strong> (고전적 “회색지대” 난제)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="math inline">\(D_N\)</span> (Dihedral Group)</td>
+<td style="text-align: left;">아니오 (Non-Abelian)</td>
+<td style="text-align: left;"><strong>최단 벡터 문제 (SVP)</strong> (격자 기반 암호, PQC)</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="기막힌-우연-qc와-복잡도-회색지대" class="level4">
+<h4 class="anchored" data-anchor-id="기막힌-우연-qc와-복잡도-회색지대">3.2. 🤯 “기막힌 우연”: QC와 “복잡도 회색지대”</h4>
+<p>고전 컴퓨터 과학의 “회색지대”(P도 아니고 NP-Complete도 아닐 것으로 추정되는) 3대 난제는 <strong>(1) 인수분해, (2) 이산 로그, (3) 그래프 동형</strong>입니다.</p>
+<p>놀랍게도 양자 컴퓨터(HSP)가 공격하는 대상은 정확히 이 “회색지대” 문제들입니다. 아벨 HSP는 (1), (2)를 다항식 시간에 해결했으며, 비-아벨 HSP는 (3)을 표적으로 삼고 있습니다.</p>
+</section>
+<section id="q2.-양자-컴퓨터는-모든-hsp를-효율적으로-풀-수-있는가-the-great-divide" class="level4">
+<h4 class="anchored" data-anchor-id="q2.-양자-컴퓨터는-모든-hsp를-효율적으로-풀-수-있는가-the-great-divide">3.3. ❓ Q2. 양자 컴퓨터는 “모든” HSP를 효율적으로 풀 수 있는가? (The Great Divide)</h4>
+<p>이것이 L17의 <strong>가장 중요한 핵심</strong>입니다.</p>
+<ul>
+<li><strong>Case 1: <span class="math inline">\(G\)</span>가 아벨 그룹(Abelian)일 때 ( <span class="math inline">\(\mathbb{Z}_N, \mathbb{Z}_2^n\)</span> 등)</strong>
+<ul>
+<li><strong>답: 예 (YES).</strong></li>
+<li><strong>이유:</strong> “양자 푸리에 샘플링” 레시피가 완벽하게 작동합니다.
+<ol type="1">
+<li><strong>[QFT] (효율적):</strong> <span class="math inline">\(U_{\text{QFT}_G}\)</span> (즉, <span class="math inline">\(H^{\otimes n}\)</span> 또는 QFT)가 <span class="math inline">\(O(poly(n))\)</span> 게이트로 효율적이었습니다.</li>
+<li><strong>[Clues <span class="math inline">\(\to\)</span> H] (효율적):</strong> QFT 측정 “단서”(<span class="math inline">\(s \cdot L=0\)</span> 또는 <span class="math inline">\(s/N \approx k/L\)</span>)로부터 <span class="math inline">\(H\)</span> (즉, <span class="math inline">\(L\)</span>)를 복원하는 <strong>고전적 후처리</strong>(선형대수, 연분수)가 <span class="math inline">\(O(poly(n))\)</span>으로 효율적이었습니다.</li>
+</ol></li>
+</ul></li>
+<li><strong>Case 2: <span class="math inline">\(G\)</span>가 비-아벨 그룹(Non-Abelian)일 때 ( <span class="math inline">\(S_n, D_N\)</span> 등)</strong>
+<ul>
+<li><strong>답: 모른다 (No, we don’t know how).</strong></li>
+<li>이것이 현재 양자 알고리즘 연구의 <strong>가장 큰 난제(open problem)</strong>입니다.</li>
+</ul></li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="비-아벨-hsp의-병목-고전적-후처리-the-non-abelian-bottleneck" class="level3">
+<h3 class="anchored" data-anchor-id="비-아벨-hsp의-병목-고전적-후처리-the-non-abelian-bottleneck">4. 🚧 비-아벨 HSP의 병목: “고전적 후처리” (The Non-Abelian Bottleneck)</h3>
+<p><strong>질문:</strong> 왜 비-아벨 HSP는 풀기 어려운가? QFT가 없어서? <strong>답: 아닙니다. QFT는 있습니다. 하지만 “단서”를 해석할 방법(고전 후처리)을 모릅니다.</strong></p>
+<p><strong>1. [QFT]는 효율적이다:</strong> (Ettinger-Høyer-Knill ’04) 놀랍게도, <span class="math inline">\(S_n\)</span>과 <span class="math inline">\(D_N\)</span> 같은 복잡한 비-아벨 그룹에 대한 QFT조차 <strong>다항식(<span class="math inline">\(poly(n)\)</span>) 시간의 양자 회로로 구현</strong>할 수 있음이 알려져 있습니다.</p>
+<p><strong>2. [Clues <span class="math inline">\(\to\)</span> H] (진짜 병목):</strong> * 아벨 그룹에서는 <span class="math inline">\(s \cdot L = 0\)</span> 이나 <span class="math inline">\(s/N \approx j/L\)</span> 처럼 “단서” <span class="math inline">\(s\)</span>와 “목표” <span class="math inline">\(L\)</span>의 관계가 단순하여, GCD나 선형대수로 <span class="math inline">\(L\)</span>을 쉽게 풀 수 있었습니다. * <strong>비-아벨 그룹</strong>에서 나오는 “단서”는 훨씬 복잡한 수학적 객체(예: 그룹 표현의 라벨)이며, 이 “단서”들로부터 숨겨진 부분군 <span class="math inline">\(H\)</span>의 생성자(generator)를 <strong>효율적으로 재구성(reconstruct)하는 <em>고전적 후처리 알고리즘</em></strong>을 (대부분의 “흥미로운” 그룹에 대해) 아직 모릅니다.</p>
+<hr>
+</section>
+<section id="hsp에-대한-대안적-관점-양자-가설-검정-quantum-hypothesis-testing" class="level3">
+<h3 class="anchored" data-anchor-id="hsp에-대한-대안적-관점-양자-가설-검정-quantum-hypothesis-testing">5. 💡 HSP에 대한 대안적 관점: 양자 가설 검정 (Quantum Hypothesis Testing)</h3>
+<p>“QFT 패러다임”이 막혔으므로, HSP 문제를 <strong>다른 관점</strong>에서 바라볼 수 있습니다.</p>
+<p><strong>HSP = 혼합 상태 구별 문제</strong> 1. <strong>[LOAD DATA]:</strong> <span class="math inline">\(H-Q_F\)</span> 회로는 <span class="math inline">\(H\)</span>의 <strong>임의의 잉여류(random coset)</strong>에 대한 <strong>균등 중첩 상태</strong>를 생성합니다. (L13, L15와 동일) * <span class="math inline">\(|\psi_1\rangle = \frac{1}{\sqrt{|G|}} \sum_{x \in G} |x\rangle |F(x)\rangle\)</span> 2. <strong>[측정 무시]:</strong> 출력 레지스터(“색깔”)를 측정하지 않고 <strong>무시(trace out)</strong>하면, 3. <strong>[혼합 상태]:</strong> 입력 레지스터는 <span class="math inline">\(H\)</span>의 모든 잉여류가 섞여 있는 <strong>“코셋 혼합 상태” <span class="math inline">\(\rho_H\)</span></strong>가 됩니다. * <span class="math inline">\(\rho_H = \frac{|H|}{|G|} \sum_{\text{cosets } x*H} |x*H\rangle \langle x*H|\)</span></p>
+<p><strong>문제 재정의:</strong> 우리는 <span class="math inline">\(H\)</span>에 따라 달라지는 <strong>혼합 상태 <span class="math inline">\(\rho_H\)</span></strong>를 생성하는 기계를 가지고 있습니다. 이 상태의 샘플(복사본)을 <span class="math inline">\(k\)</span>개 받아서, 이 상태가 가능한 가설(<span class="math inline">\(\rho_{H_1}, \rho_{H_2}, \dots\)</span>) 중 어느 것인지 <strong>구별(distinguish)</strong>할 수 있습니까?</p>
+<p><strong>EHK ’04의 반전:</strong> 1. <strong>정보는 충분하다:</strong> <span class="math inline">\(k = O(poly(n))\)</span>개의 샘플만 있으면, <strong>정보 이론적으로(information-theoretically)</strong> <span class="math inline">\(H\)</span>를 구별하기에 <strong>충분한 정보</strong>가 됩니다. 2. <strong>계산이 불가능하다:</strong> 하지만, <span class="math inline">\(H\)</span>를 “읽어내기” 위해 이 <span class="math inline">\(k\)</span>개의 샘플에 어떤 <strong>효율적인 양자 측정(algorithmic measurement)</strong>을 수행해야 하는지는 <strong>아직 모릅니다.</strong></p>
+<p><strong>최종 결론:</strong> 비-아벨 HSP는 (QFT든 EHK든) “양자 상태에 숨겨진 <span class="math inline">\(H\)</span> 정보를 효율적으로 추출하는 <strong>알고리즘적 측정/후처리 방법</strong>”을 모르기 때문에 풀리지 않고 있습니다.</p>
+
+
+</section>
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

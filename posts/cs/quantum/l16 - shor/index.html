@@ -6,8 +6,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="Analysis by Gemini">
+<meta name="dcterms.date" content="2025-11-02">
+<meta name="description" content="Shor의 인수분해 알고리즘을 분석합니다. 이 알고리즘은 1970년대의 고전 정수론(인수분해를 “위수 찾기”로 환원)과 L15의 양자 “주기 찾기” 서브루틴을 결합합니다. 알고리즘의 병목인 O(n^3)의 “모듈러 지수 연산” 오라클 구현과, N \gg L^2 설정을 통해 “연분수 알고리즘”으로 양자 측정값 s \approx k(N/L)에서 주기 L을 복원하는 O(n^3)의 고전 후처리 과정을 탐구합니다.">
 
-<title>index – dragon6217.github.io</title>
+<title>L16. Shor’s Factoring Algorithm – dragon6217.github.io</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -69,6 +72,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../../../styles.css">
 </head>
@@ -122,17 +154,181 @@ ul.task-list li input[type="checkbox"] {
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#l16.-shors-factoring-algorithm" id="toc-l16.-shors-factoring-algorithm" class="nav-link active" data-scroll-target="#l16.-shors-factoring-algorithm">L16. Shor’s Factoring Algorithm</a>
+  <ul class="collapse">
+  <li><a href="#복습-l15의-양자-주기-찾기-기계-the-quantum-subroutine" id="toc-복습-l15의-양자-주기-찾기-기계-the-quantum-subroutine" class="nav-link" data-scroll-target="#복습-l15의-양자-주기-찾기-기계-the-quantum-subroutine">1. 복습: L15의 “양자 주기 찾기 기계” (The Quantum Subroutine)</a></li>
+  <li><a href="#고전적-환원-인수분해-le-위수-찾기-factoring-le-order-finding" id="toc-고전적-환원-인수분해-le-위수-찾기-factoring-le-order-finding" class="nav-link" data-scroll-target="#고전적-환원-인수분해-le-위수-찾기-factoring-le-order-finding">2. 고전적 환원: 인수분해 <span class="math inline">\(\le\)</span> 위수 찾기 (Factoring <span class="math inline">\(\le\)</span> Order-Finding)</a></li>
+  <li><a href="#알고리즘의-병목과-확률" id="toc-알고리즘의-병목과-확률" class="nav-link" data-scroll-target="#알고리즘의-병목과-확률">3. 알고리즘의 병목과 확률</a></li>
+  <li><a href="#part-1-고전-후처리-단서-s로부터-l-찾기" id="toc-part-1-고전-후처리-단서-s로부터-l-찾기" class="nav-link" data-scroll-target="#part-1-고전-후처리-단서-s로부터-l-찾기">4. [Part 1] 고전 후처리: “단서” <span class="math inline">\(s\)</span>로부터 <span class="math inline">\(L\)</span> 찾기</a></li>
+  </ul></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">L16. Shor’s Factoring Algorithm</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Quantum Computing</div>
+    <div class="quarto-category">Quantum Algorithms</div>
+    <div class="quarto-category">Shor's Algorithm</div>
+    <div class="quarto-category">Factoring</div>
+    <div class="quarto-category">Number Theory</div>
+    <div class="quarto-category">QFT</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Shor의 인수분해 알고리즘을 분석합니다. 이 알고리즘은 1970년대의 고전 정수론(인수분해를 “위수 찾기”로 환원)과 L15의 양자 “주기 찾기” 서브루틴을 결합합니다. 알고리즘의 병목인 <span class="math inline">\(O(n^3)\)</span>의 “모듈러 지수 연산” 오라클 구현과, <span class="math inline">\(N \gg L^2\)</span> 설정을 통해 “연분수 알고리즘”으로 양자 측정값 <span class="math inline">\(s \approx k(N/L)\)</span>에서 주기 <span class="math inline">\(L\)</span>을 복원하는 <span class="math inline">\(O(n^3)\)</span>의 고전 후처리 과정을 탐구합니다.
+  </div>
+</div>
 
 
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Analysis by Gemini </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 2, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
 
 
+</header>
 
 
+<section id="l16.-shors-factoring-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="l16.-shors-factoring-algorithm">L16. Shor’s Factoring Algorithm</h2>
+<p>Shor의 인수분해 알고리즘은 100% 양자 알고리즘이 아닙니다. 이 알고리즘은 <strong>“양자 컴퓨터가 매우 잘하는 핵심 서브루틴” (L15: 주기 찾기)</strong>과, 이를 활용하는 <strong>“영리한 고전 정수론”</strong>의 조합입니다.</p>
+<p>Shor의 천재성은 고전적으로 지수적 시간이 걸렸던 “주기 찾기(Order-Finding)”라는 단 하나의 병목 단계를 양자 컴퓨터로 대체한 데 있습니다.</p>
+<section id="복습-l15의-양자-주기-찾기-기계-the-quantum-subroutine" class="level3">
+<h3 class="anchored" data-anchor-id="복습-l15의-양자-주기-찾기-기계-the-quantum-subroutine">1. 복습: L15의 “양자 주기 찾기 기계” (The Quantum Subroutine)</h3>
+<p>L15에서 우리는 다음과 같은 강력한 양자 서브루틴(Subroutine)을 완성했습니다.</p>
+<ul>
+<li><strong>입력 (Input):</strong> 주기 <span class="math inline">\(L\)</span>을 가진 함수 <span class="math inline">\(F: \mathbb{Z}_N \to \text{COLORS}\)</span>를 구현하는 양자 오라클 <span class="math inline">\(Q_F\)</span>.</li>
+<li><strong>알고리즘:</strong> <span class="math inline">\(H-Q_F-QFT \to \text{Measure}\)</span> (L15의 푸리에 샘플링)</li>
+<li><strong>비용 (Cost):</strong> <span class="math inline">\(O(n^2)\)</span> 또는 (근사) <span class="math inline">\(O(n \log n)\)</span> 게이트. (<span class="math inline">\(n = \log N\)</span>)</li>
+<li><strong>출력 (The “Clue”):</strong> 알고리즘을 1회 실행하면, 고전적인 정수 <span class="math inline">\(s\)</span>를 측정합니다.
+<ol type="1">
+<li><strong>“Good” (확률 <span class="math inline">\(\ge 40.5\%\)</span>):</strong> <span class="math inline">\(s\)</span>는 <span class="math inline">\(L\)</span>에 대한 “좋은 단서”입니다. <span class="math display">\[s = \text{Nearest Integer}\left(k \cdot \frac{N}{L}\right) \quad (\text{for a random } k \in \{0, \dots, L-1\})\]</span></li>
+<li><strong>“Junk” (확률 <span class="math inline">\(\le 59.5\%\)</span>):</strong> <span class="math inline">\(s\)</span>는 <span class="math inline">\(L\)</span>과 관계없는 “쓰레기” 값입니다.</li>
+</ol></li>
+</ul>
+<hr>
+</section>
+<section id="고전적-환원-인수분해-le-위수-찾기-factoring-le-order-finding" class="level3">
+<h3 class="anchored" data-anchor-id="고전적-환원-인수분해-le-위수-찾기-factoring-le-order-finding">2. 고전적 환원: 인수분해 <span class="math inline">\(\le\)</span> 위수 찾기 (Factoring <span class="math inline">\(\le\)</span> Order-Finding)</h3>
+<p>우리의 목표는 <span class="math inline">\(n\)</span>비트 정수 <span class="math inline">\(M = P \cdot Q\)</span> (<span class="math inline">\(P, Q\)</span>는 소수)를 인수분해하는 것입니다. 이 문제는 1970년대(Gary Miller)부터 “위수 찾기(Order-Finding)” 문제로 (고전적으로) 환원될 수 있음이 알려져 있었습니다.</p>
+<p><strong>핵심 정수론 트릭: 1의 비자명한 제곱근</strong> * <span class="math inline">\(M=PQ\)</span>일 때, <span class="math inline">\(R \not\equiv \pm 1 \pmod M\)</span> 이면서 <span class="math inline">\(R^2 \equiv 1 \pmod M\)</span>을 만족하는 “비자명한(nontrivial)” 해 <span class="math inline">\(R\)</span>을 찾으면, * <span class="math inline">\((R-1)(R+1) \equiv 0 \pmod M\)</span> 이고, <span class="math inline">\(M\)</span>은 두 항 중 어느 쪽도 나누지 못하므로, * <span class="math inline">\(\text{gcd}(R-1, M) = P\)</span> (또는 <span class="math inline">\(Q\)</span>)가 되어 인수분해에 성공합니다. * <strong>Shor의 전략:</strong> 임의의 <span class="math inline">\(A\)</span>의 “위수(order)” <span class="math inline">\(L\)</span>을 찾아서, <span class="math inline">\(R = A^{L/2}\)</span>로 이 “비자명한” <span class="math inline">\(R\)</span>을 만듭니다.</p>
+<section id="고전-환원-알고리즘-classical-reduction" class="level4">
+<h4 class="anchored" data-anchor-id="고전-환원-알고리즘-classical-reduction">2.1. 고전 환원 알고리즘 (Classical Reduction)</h4>
+<ol type="1">
+<li><strong>[1] (고전) <span class="math inline">\(A\)</span> 선택:</strong> <span class="math inline">\(1 &lt; A &lt; M-1\)</span> 범위에서 임의의 정수 <span class="math inline">\(A\)</span>를 고릅니다.</li>
+<li><strong>[2] (고전) GCD 확인:</strong> <span class="math inline">\(\text{gcd}(A, M)\)</span>을 계산(<span class="math inline">\(O(n^3)\)</span>)합니다.
+<ul>
+<li><span class="math inline">\(G &gt; 1\)</span>이면, <span class="math inline">\(G\)</span>가 <span class="math inline">\(M\)</span>의 소인수(<span class="math inline">\(P\)</span> 또는 <span class="math inline">\(Q\)</span>)입니다. (성공, 종료)</li>
+<li><span class="math inline">\(G = 1\)</span> (즉, <span class="math inline">\(A \in \mathbb{Z}_M^*\)</span>)이라고 가정합니다.</li>
+</ul></li>
+<li><strong>[3] (양자) 주기 찾기:</strong>
+<ul>
+<li>함수 <span class="math inline">\(F_A(x) = A^x \pmod M\)</span> 를 정의합니다.</li>
+<li><span class="math inline">\(F_A(x)\)</span>의 주기 <span class="math inline">\(L\)</span> (즉, <span class="math inline">\(A^L \equiv 1 \pmod M\)</span>을 만족하는 최소 <span class="math inline">\(L\)</span>)을 <strong>L15의 양자 서브루틴</strong>을 이용해 찾습니다. (이것이 유일한 양자 단계입니다.)</li>
+</ul></li>
+<li><strong>[4] (고전) “행운” 확인 1:</strong> <span class="math inline">\(L\)</span>이 짝수(even)인지 확인합니다. (홀수이면 1단계로 돌아가 <span class="math inline">\(A\)</span>를 다시 선택)</li>
+<li><strong>[5] (고전) <span class="math inline">\(R\)</span> 계산:</strong> <span class="math inline">\(R = A^{L/2} \pmod M\)</span> 을 계산(<span class="math inline">\(O(n^3)\)</span>)합니다.</li>
+<li><strong>[6] (고전) “행운” 확인 2:</strong> <span class="math inline">\(R \not\equiv -1 \pmod M\)</span> 인지 확인합니다. ( <span class="math inline">\(-1\)</span> 이면 “사소한” 해이므로 1단계로 돌아가 <span class="math inline">\(A\)</span>를 다시 선택)</li>
+<li><strong>[7] (고전) 인수분해:</strong>
+<ul>
+<li>우리는 <span class="math inline">\(R \not\equiv \pm 1 \pmod M\)</span> 이면서 <span class="math inline">\(R^2 \equiv 1 \pmod M\)</span> 인 “비자명한” <span class="math inline">\(R\)</span>을 찾았습니다.</li>
+<li><span class="math inline">\(P = \text{gcd}(R-1, M)\)</span> (<span class="math inline">\(O(n^3)\)</span>)</li>
+<li><span class="math inline">\(Q = \text{gcd}(R+1, M)\)</span> (<span class="math inline">\(O(n^3)\)</span>)</li>
+</ul></li>
+</ol>
+<hr>
+</section>
+</section>
+<section id="알고리즘의-병목과-확률" class="level3">
+<h3 class="anchored" data-anchor-id="알고리즘의-병목과-확률">3. 알고리즘의 병목과 확률</h3>
+<section id="양자-오라클-q_f의-효율성-the-bottleneck" class="level4">
+<h4 class="anchored" data-anchor-id="양자-오라클-q_f의-효율성-the-bottleneck">3.1. 양자 오라클 <span class="math inline">\(Q_F\)</span>의 효율성 (The Bottleneck)</h4>
+<p>Shor 알고리즘의 <strong>진정한 병목(bottleneck)</strong>은 QFT(<span class="math inline">\(O(n^2)\)</span>)가 아니라, 3단계에서 <span class="math inline">\(F_A(x) = A^x \pmod M\)</span> 함수를 구현하는 <strong>양자 오라클 <span class="math inline">\(Q_F\)</span></strong>입니다.</p>
+<ul>
+<li><span class="math inline">\(F_A(x)\)</span>는 “반복 제곱(repeated squaring)”을 통해 고전적으로 <strong><span class="math inline">\(O(n^3)\)</span></strong> (또는 <span class="math inline">\(O(n^2 \log n \dots)\)</span>) 시간에 계산할 수 있습니다.</li>
+<li>L10에 따라, 이 고전 회로는 <span class="math inline">\(O(n^3)\)</span> 게이트를 사용하는 <strong>가역 양자 회로 <span class="math inline">\(Q_F\)</span></strong>로 효율적으로 변환될 수 있습니다.</li>
+<li><strong>총 복잡도:</strong> ( <span class="math inline">\(O(1)\)</span>번 반복 <span class="math inline">\(\times\)</span> [ <span class="math inline">\(O(n^3)\)</span> 오라클 + <span class="math inline">\(O(n^2)\)</span> QFT ] ) + <span class="math inline">\(O(n^3)\)</span> 고전 후처리 <span class="math inline">\(\implies\)</span> <strong><span class="math inline">\(O(n^3)\)</span></strong> (다항식 시간)</li>
+</ul>
+</section>
+<section id="행운의-확률-prluck" class="level4">
+<h4 class="anchored" data-anchor-id="행운의-확률-prluck">3.2. “행운”의 확률 (Pr[Luck])</h4>
+<p>4, 6단계에서 실패(L이 홀수이거나 <span class="math inline">\(R \equiv -1\)</span>)하고 1단계로 돌아갈 확률은 얼마일까요?</p>
+<blockquote class="blockquote">
+<p><strong>[핵심 보조정리 (Shor)]</strong> <span class="math inline">\(M=PQ\)</span> (서로 다른 두 홀수 소수의 곱)일 때, <span class="math inline">\(A \in \mathbb{Z}_M^*\)</span>를 무작위로 선택하면, “성공”할 확률 (즉, <span class="math inline">\(L\)</span>이 짝수이고 <span class="math inline">\(A^{L/2} \not\equiv -1 \pmod M\)</span> 일 확률)은</p>
+<p><strong><span class="math inline">\(\text{Pr}[\text{Success}] \ge \frac{1}{2}\)</span></strong></p>
+</blockquote>
+<ul>
+<li><strong>증명 (Sketch):</strong> 중국인의 나머지 정리(CRT)에 의해 <span class="math inline">\(\mathbb{Z}_M^* \cong \mathbb{Z}_P^* \times \mathbb{Z}_Q^*\)</span> 입니다. <span class="math inline">\(A \leftrightarrow (A_P, A_Q)\)</span> 이고 <span class="math inline">\(L = \text{lcm}(L_P, L_Q)\)</span> 입니다.</li>
+<li><strong>(운 1)</strong> <span class="math inline">\(\text{Pr}[L \text{ is even}] = 1 - \text{Pr}[L_P \text{ odd}]\text{Pr}[L_Q \text{ odd}] = 1 - (1/2)(1/2) = \mathbf{3/4}\)</span> 입니다.</li>
+<li><strong>(운 2)</strong> “실패”(<span class="math inline">\(A^{L/2} \equiv -1\)</span>)는 <span class="math inline">\(A \leftrightarrow (-1, -1)\)</span> 쌍에 해당하며, 이는 <span class="math inline">\(L_P, L_Q\)</span>의 <span class="math inline">\(2\)</span>-adic power가 같을 때만 발생하여 확률을 <span class="math inline">\(1/2\)</span> 이하로 낮춥니다.</li>
+<li><strong>결론:</strong> <span class="math inline">\(O(1)\)</span> (상수) 횟수만 알고리즘을 반복하면 1에 가까운 확률로 성공합니다.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="part-1-고전-후처리-단서-s로부터-l-찾기" class="level3">
+<h3 class="anchored" data-anchor-id="part-1-고전-후처리-단서-s로부터-l-찾기">4. [Part 1] 고전 후처리: “단서” <span class="math inline">\(s\)</span>로부터 <span class="math inline">\(L\)</span> 찾기</h3>
+<p>알고리즘의 마지막 퍼즐은 3단계에서 얻은 “양자 단서” <span class="math inline">\(s \approx k(N/L)\)</span>로부터 <span class="math inline">\(L\)</span>을 <strong>고전적으로</strong> 복원하는 것입니다.</p>
+<ul>
+<li><strong>문제:</strong> <span class="math inline">\(\frac{s}{N} \approx \frac{k}{L}\)</span> ( <span class="math inline">\(s, N\)</span>은 알고 <span class="math inline">\(k, L\)</span>은 모름)</li>
+<li><strong>해법:</strong> <strong>연분수 알고리즘 (Continued Fractions Algorithm, CFA)</strong></li>
+<li>CFA는 <span class="math inline">\(O(n^3)\)</span>의 고전적 시간 안에, “나쁜” 근사 분수 <span class="math inline">\(\frac{s}{N}\)</span>를 “최상의” 기약분수(lowest terms) <span class="math inline">\(\frac{k'}{L'}\)</span>로 변환합니다.</li>
+</ul>
+<section id="마법이-작동하는-이유-n-gg-l2" class="level4">
+<h4 class="anchored" data-anchor-id="마법이-작동하는-이유-n-gg-l2">4.1. “마법”이 작동하는 이유 (<span class="math inline">\(N \gg L^2\)</span>)</h4>
+<p>CFA가 우리가 원하는 <span class="math inline">\(k, L\)</span>을 정확히(혹은 <span class="math inline">\(L\)</span>의 약수를) 찾는다는 것을 어떻게 보장할까요? <strong>답:</strong> <span class="math inline">\(N\)</span>을 <span class="math inline">\(L^2\)</span>보다 훨씬 크게 설정했기 때문입니다.</p>
+<ol type="1">
+<li><strong>Shor의 설정:</strong> <span class="math inline">\(M\)</span>이 <span class="math inline">\(m\)</span>비트일 때 <span class="math inline">\(L &lt; M \approx 2^m\)</span> 입니다. 우리는 <span class="math inline">\(n=2m\)</span> (즉 <span class="math inline">\(N=2^{2m} \approx M^2\)</span>) 또는 <span class="math inline">\(n=10m\)</span> 등으로 <span class="math inline">\(N\)</span>을 설정합니다.</li>
+<li><strong>보장된 근사:</strong> “좋은” <span class="math inline">\(s\)</span>는 다음을 만족합니다: <span class="math display">\[\left| \frac{s}{N} - \frac{k}{L} \right| \le \frac{1}{2N}\]</span></li>
+<li><strong>정수론 정리 (Legendre):</strong> <span class="math inline">\(\left| x - \frac{k}{L} \right| \le \frac{1}{2L^2}\)</span>를 만족하면, CFA는 <em>반드시</em> <span class="math inline">\(\frac{k}{L}\)</span> (혹은 그 약분)를 찾습니다.</li>
+<li><strong>Shor의 적용:</strong> 우리는 <span class="math inline">\(N \ge M^2 &gt; L^2\)</span> (즉, <span class="math inline">\(\frac{1}{2N} \le \frac{1}{2M^2} &lt; \frac{1}{2L^2}\)</span>) 로 <span class="math inline">\(N\)</span>을 설정했습니다.</li>
+<li><strong>결론:</strong> 우리의 근사(<span class="math inline">\(\frac{1}{2N}\)</span>)는 CFA가 작동하기 위한 조건(<span class="math inline">\(\frac{1}{2L^2}\)</span>)보다 훨씬 더 정밀하므로, CFA는 <strong>반드시</strong> <span class="math inline">\(L\)</span>의 (약수) 후보 <span class="math inline">\(L'\)</span>를 찾아냅니다.</li>
+</ol>
+</section>
+<section id="고전-후처리-루프-the-classical-loop" class="level4">
+<h4 class="anchored" data-anchor-id="고전-후처리-루프-the-classical-loop">4.2. 고전 후처리 루프 (The Classical Loop)</h4>
+<ol type="1">
+<li><strong>[1] (양자)</strong> <span class="math inline">\(H-Q_F-QFT \to \text{Measure}\)</span>를 1회 실행하여 <span class="math inline">\(s\)</span>를 얻습니다. (확률 <span class="math inline">\(\ge 40\%\)</span>로 “좋음”)</li>
+<li><strong>[2] (고전 <span class="math inline">\(O(n^3)\)</span>)</strong> CFA를 <span class="math inline">\(\frac{s}{N}\)</span>에 적용하여 기약분수 후보 <span class="math inline">\(\frac{k'}{L'}\)</span>를 찾습니다.</li>
+<li><strong>[3] (고전 <span class="math inline">\(O(n^3)\)</span>)</strong> <strong>검증 (Verification):</strong> <span class="math inline">\(L'\)</span>가 “진짜” 주기의 약수인지 확인합니다. <span class="math inline">\(\implies A^{L'} \pmod M\)</span>을 계산합니다.</li>
+<li><strong>[4] 판정 (Decision):</strong>
+<ul>
+<li><strong>(실패)</strong> <span class="math inline">\(A^{L'} \not\equiv 1 \pmod M\)</span> 이면, <span class="math inline">\(s\)</span>가 “Junk”였거나 <span class="math inline">\(k\)</span>가 <span class="math inline">\(L\)</span>과 서로소가 아니어서(예: <span class="math inline">\(k/L = 2/6 \to 1/3\)</span>) <span class="math inline">\(L'\)</span>가 <span class="math inline">\(L\)</span>이 아닌 <span class="math inline">\(L\)</span>의 약수(3)로 나온 경우입니다. <span class="math inline">\(\implies\)</span> <strong>1단계로 돌아가 양자 알고리즘을 다시 실행</strong>합니다. (LCM 방식 등으로 보완 가능)</li>
+<li><strong>(성공)</strong> <span class="math inline">\(A^{L'} \equiv 1 \pmod M\)</span> 이면, <span class="math inline">\(L'=L\)</span> (또는 <span class="math inline">\(L\)</span>의 약수)을 찾은 것입니다. <span class="math inline">\(\implies\)</span> 2.1절의 4~8단계(L이 짝수인지, <span class="math inline">\(R\)</span>이 비자명한지 확인 후 <span class="math inline">\(\text{gcd}\)</span>)를 진행합니다.</li>
+</ul></li>
+</ol>
+
+
+</section>
+</section>
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

@@ -6,8 +6,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="Analysis by Gemini">
+<meta name="dcterms.date" content="2025-11-02">
+<meta name="description" content="Shor의 “구조적” 주기 찾기와 달리, “비구조적(unstructured)” 검색 문제를 다룹니다. 고전 O(N)의 검색 복잡도를 O(\sqrt{N})으로 낮추는 “이차적(quadratic)” 양자 속도 향상을 보이며, 이는 BBBV “94 정리에 의해 최적(optimal)임이 증명되었습니다.”푸리에 샘플링”이 아닌 “진폭 증폭(Amplitude Amplification)”이라는 새로운 프레임워크를 기반으로 하며, U_f(오라클 반사)와 U_s(평균 반사)라는 두 연산을 O(\sqrt{N})번 반복하는 원리를 탐구합니다.">
 
-<title>index – dragon6217.github.io</title>
+<title>L18. Grover’s Algorithm – dragon6217.github.io</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -69,6 +72,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../../../styles.css">
 </head>
@@ -122,17 +154,227 @@ ul.task-list li input[type="checkbox"] {
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#l18.-grovers-algorithm" id="toc-l18.-grovers-algorithm" class="nav-link active" data-scroll-target="#l18.-grovers-algorithm">L18. Grover’s Algorithm</a>
+  <ul class="collapse">
+  <li><a href="#문제-정의-비구조화된-검색-the-unstructured-search-problem" id="toc-문제-정의-비구조화된-검색-the-unstructured-search-problem" class="nav-link" data-scroll-target="#문제-정의-비구조화된-검색-the-unstructured-search-problem">1. 🎯 문제 정의: 비구조화된 검색 (The Unstructured Search Problem)</a></li>
+  <li><a href="#계산-모델-블랙박스-쿼리-모델-black-box-query-model" id="toc-계산-모델-블랙박스-쿼리-모델-black-box-query-model" class="nav-link" data-scroll-target="#계산-모델-블랙박스-쿼리-모델-black-box-query-model">2. 📦 계산 모델: 블랙박스 쿼리 모델 (Black-Box Query Model)</a></li>
+  <li><a href="#쿼리-복잡도-비교-고전-vs-양자" id="toc-쿼리-복잡도-비교-고전-vs-양자" class="nav-link" data-scroll-target="#쿼리-복잡도-비교-고전-vs-양자">3. 📈 쿼리 복잡도 비교: 고전 vs 양자</a></li>
+  <li><a href="#grover-알고리즘의-최적성-optimality" id="toc-grover-알고리즘의-최적성-optimality" class="nav-link" data-scroll-target="#grover-알고리즘의-최적성-optimality">4. 🔒 Grover 알고리즘의 최적성 (Optimality)</a></li>
+  <li><a href="#함의-양자-컴퓨터와-np-complete-문제-implications-for-np-complete" id="toc-함의-양자-컴퓨터와-np-complete-문제-implications-for-np-complete" class="nav-link" data-scroll-target="#함의-양자-컴퓨터와-np-complete-문제-implications-for-np-complete">5. 🤯 함의: 양자 컴퓨터와 NP-Complete 문제 (Implications for NP-Complete)</a></li>
+  <li><a href="#왜-푸리에-샘플링-hsp-패러다임은-검색에-실패하는가" id="toc-왜-푸리에-샘플링-hsp-패러다임은-검색에-실패하는가" class="nav-link" data-scroll-target="#왜-푸리에-샘플링-hsp-패러다임은-검색에-실패하는가">6. ❌ 왜 “푸리에 샘플링” (HSP) 패러다임은 검색에 실패하는가?</a></li>
+  <li><a href="#grover의-진짜-아이디어-진폭-증폭-amplitude-amplification" id="toc-grover의-진짜-아이디어-진폭-증폭-amplitude-amplification" class="nav-link" data-scroll-target="#grover의-진짜-아이디어-진폭-증폭-amplitude-amplification">7. 💡 Grover의 “진짜” 아이디어: 진폭 증폭 (Amplitude Amplification)</a></li>
+  <li><a href="#q1-q2-grover의-메커니즘-how-and-why" id="toc-q1-q2-grover의-메커니즘-how-and-why" class="nav-link" data-scroll-target="#q1-q2-grover의-메커니즘-how-and-why">8. Q1 &amp; Q2: Grover의 메커니즘 (How? and Why?)</a></li>
+  <li><a href="#최적의-반복-횟수와-과회전-경고" id="toc-최적의-반복-횟수와-과회전-경고" class="nav-link" data-scroll-target="#최적의-반복-횟수와-과회전-경고">9. 🛑 최적의 반복 횟수와 “과회전” 경고</a></li>
+  </ul></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">L18. Grover’s Algorithm</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">Quantum Computing</div>
+    <div class="quarto-category">Quantum Algorithms</div>
+    <div class="quarto-category">Grover's Algorithm</div>
+    <div class="quarto-category">Search</div>
+    <div class="quarto-category">Complexity Theory</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Shor의 “구조적” 주기 찾기와 달리, “비구조적(unstructured)” 검색 문제를 다룹니다. 고전 <span class="math inline">\(O(N)\)</span>의 검색 복잡도를 <span class="math inline">\(O(\sqrt{N})\)</span>으로 낮추는 “이차적(quadratic)” 양자 속도 향상을 보이며, 이는 BBBV “94 정리에 의해 최적(optimal)임이 증명되었습니다.”푸리에 샘플링”이 아닌 “진폭 증폭(Amplitude Amplification)”이라는 새로운 프레임워크를 기반으로 하며, <span class="math inline">\(U_f\)</span>(오라클 반사)와 <span class="math inline">\(U_s\)</span>(평균 반사)라는 두 연산을 <span class="math inline">\(O(\sqrt{N})\)</span>번 반복하는 원리를 탐구합니다.
+  </div>
+</div>
 
 
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Analysis by Gemini </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">November 2, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
 
 
+</header>
 
 
+<section id="l18.-grovers-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="l18.-grovers-algorithm">L18. Grover’s Algorithm</h2>
+<p>Shor의 알고리즘(L16)에 이어 두 번째로 유명한 양자 알고리즘이지만, Shor와는 근본적으로 다른 프레임워크에 기반합니다.</p>
+<ul>
+<li><strong>Shor (HSP 패러다임):</strong>
+<ul>
+<li><strong>프레임워크:</strong> <strong>양자 푸리에 샘플링 (Quantum Fourier Sampling)</strong> (L11-L17)</li>
+<li><strong>문제:</strong> “주기성”이라는 <strong>구조적 패턴(structured pattern)</strong>을 찾습니다.</li>
+<li><strong>속도 향상:</strong> <strong>지수적 (Exponential)</strong> (고전 <span class="math inline">\(\exp(n)\)</span> vs 양자 <span class="math inline">\(poly(n)\)</span>)</li>
+</ul></li>
+<li><strong>Grover (본 강의):</strong>
+<ul>
+<li><strong>프레임워크:</strong> <strong>진폭 증폭 (Amplitude Amplification)</strong></li>
+<li><strong>문제:</strong> <strong>“구조가 없는(unstructured)”</strong> 순수 검색 문제를 다룹니다.</li>
+<li><strong>속도 향상:</strong> “단지(merely)” <strong>이차적 (Quadratic)</strong> (고전 <span class="math inline">\(O(N)\)</span> vs 양자 <span class="math inline">\(O(\sqrt{N})\)</span>)</li>
+</ul></li>
+</ul>
+<hr>
+<section id="문제-정의-비구조화된-검색-the-unstructured-search-problem" class="level3">
+<h3 class="anchored" data-anchor-id="문제-정의-비구조화된-검색-the-unstructured-search-problem">1. 🎯 문제 정의: 비구조화된 검색 (The Unstructured Search Problem)</h3>
+<p><strong>작업 (Task):</strong> <span class="math inline">\(N=2^n\)</span>개의 항목(bit)으로 구성된 거대한 “데이터베이스”가 있습니다. 이 데이터베이스는 불리언 함수(Boolean function) <span class="math inline">\(F: \{0,1\}^n \to \{0,1\}\)</span>의 <strong>“암시적(implicit)” 진리표</strong>로 주어집니다.</p>
+<p><strong>목표 (Goal):</strong> 이 “데이터베이스”에서 <span class="math inline">\(F(x)=1\)</span>을 만족하는 “표시된(marked)” 항목 <span class="math inline">\(x\)</span>를 <strong>찾는(find)</strong> 것입니다. * (만약 “1”이 하나도 없다면, <span class="math inline">\(K=0\)</span>임을 확신하고 “0”을 반환해야 합니다.) * <strong>핵심:</strong> <span class="math inline">\(F\)</span>에는 Shor의 문제와 같은 <strong>어떠한 “패턴”이나 “주기성”도 없습니다.</strong></p>
+<hr>
+</section>
+<section id="계산-모델-블랙박스-쿼리-모델-black-box-query-model" class="level3">
+<h3 class="anchored" data-anchor-id="계산-모델-블랙박스-쿼리-모델-black-box-query-model">2. 📦 계산 모델: 블랙박스 쿼리 모델 (Black-Box Query Model)</h3>
+<p>이 문제를 분석하기 위해, 우리는 Shor/Simon과 동일한 <strong>“블랙박스 쿼리 모델”</strong>을 가정합니다.</p>
+<ul>
+<li><strong>가정:</strong> 우리는 <span class="math inline">\(F\)</span>를 구현하는 회로(circuit) <span class="math inline">\(C\)</span> (오라클)를 받지만, 그 <strong>내부 코드나 게이트를 들여다볼 수 없습니다(not allowed to look).</strong></li>
+<li><strong>허용된 연산:</strong> 우리는 오직 <span class="math inline">\(C\)</span>에 입력을 넣고 출력을 받는 <strong>“쿼리(query)” (사용)</strong>만 할 수 있습니다.</li>
+<li><strong>복잡도 척도:</strong> 알고리즘의 효율성은 <strong>“오라클 <span class="math inline">\(C\)</span>를 몇 번 호출(query)했는가?”</strong>로 측정됩니다.</li>
+</ul>
+<hr>
+</section>
+<section id="쿼리-복잡도-비교-고전-vs-양자" class="level3">
+<h3 class="anchored" data-anchor-id="쿼리-복잡도-비교-고전-vs-양자">3. 📈 쿼리 복잡도 비교: 고전 vs 양자</h3>
+<p><strong>문제:</strong> <span class="math inline">\(N=2^n\)</span>개의 항목 중 <span class="math inline">\(F(x)=1\)</span>인 “표시된” 항목 <span class="math inline">\(x\)</span> ( <span class="math inline">\(K\)</span>개가 있다고 가정)를 찾는 데 필요한 오라클 <span class="math inline">\(F\)</span>의 <strong>호출(query) 횟수</strong>는 몇 번인가?</p>
+<ul>
+<li><strong>고전적 (Deterministic):</strong> 최악의 경우 <span class="math inline">\(O(N)\)</span>번.</li>
+<li><strong>고전적 (Randomized):</strong> <span class="math inline">\(F(x)=1\)</span>인 것을 찾을 기대 횟수는 <span class="math inline">\(O(N/K)\)</span>번입니다.
+<ul>
+<li><span class="math inline">\(K=1\)</span> (가장 어려운 경우) <span class="math inline">\(\implies\)</span> <span class="math inline">\(O(N)\)</span> 쿼리.</li>
+</ul></li>
+<li><strong>양자 (Grover ’96):</strong>
+<ul>
+<li><span class="math inline">\(K\)</span>개의 “1”이 있을 때, <span class="math inline">\(K\)</span>개의 항목 중 하나를 높은 확률로 찾습니다.</li>
+<li><strong>쿼리 횟수: <span class="math inline">\(O(\sqrt{N/K})\)</span></strong></li>
+</ul></li>
+</ul>
+<section id="grover의-속도-향상-이차적-quadratic" class="level4">
+<h4 class="anchored" data-anchor-id="grover의-속도-향상-이차적-quadratic">3.1. Grover의 속도 향상: 이차적 (Quadratic)</h4>
+<ul>
+<li><strong>Shor:</strong> 고전 <span class="math inline">\(O(2^n)\)</span> <span class="math inline">\(\to\)</span> 양자 <span class="math inline">\(O(n^3)\)</span> (<strong>지수적</strong> 향상)</li>
+<li><strong>Grover (K=1):</strong> 고전 <span class="math inline">\(O(N) = O(2^n)\)</span> <span class="math inline">\(\to\)</span> 양자 <span class="math inline">\(O(\sqrt{N}) = O(\sqrt{2^n}) \approx O(1.414^n)\)</span>
+<ul>
+<li>이는 <span class="math inline">\(N\)</span> (총 항목 수)의 관점에서는 <strong>“이차적(quadratic) 속도 향상”</strong>입니다.</li>
+<li>(사용자 노트: <code>Bigger K, faster Grover does it.</code>) 표시된 항목 <span class="math inline">\(K\)</span>가 많을수록 <span class="math inline">\(\sqrt{K}\)</span>배 더 빨라집니다.</li>
+</ul></li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="grover-알고리즘의-최적성-optimality" class="level3">
+<h3 class="anchored" data-anchor-id="grover-알고리즘의-최적성-optimality">4. 🔒 Grover 알고리즘의 최적성 (Optimality)</h3>
+<p><strong>질문:</strong> <span class="math inline">\(O(\sqrt{N})\)</span>보다 더 빠를 수는 없는가? (예: Shor처럼 <span class="math inline">\(O(poly(n))\)</span> 시간에?) <strong>답: 불가능하다.</strong></p>
+<blockquote class="blockquote">
+<p><strong>[정리] (BBBV ’94)</strong> “블랙박스 쿼리 모델”에서, 비구조화된 데이터베이스(<span class="math inline">\(N\)</span>개 항목)의 “표시된” 항목을 높은 확률로 찾기 위해서는, <strong>어떤 양자 알고리즘이라도 <em>최소한</em> <span class="math inline">\(\Omega(\sqrt{N})\)</span>번의 쿼리가 필요하다.</strong></p>
+</blockquote>
+<p><strong>결론:</strong> Grover의 <span class="math inline">\(O(\sqrt{N})\)</span> 알고리즘은 이 <span class="math inline">\(\Omega(\sqrt{N})\)</span> 하한(lower bound)과 일치하므로, <strong>(이차적 속도 향상이) 최선(optimal)</strong>입니다.</p>
+<hr>
+</section>
+<section id="함의-양자-컴퓨터와-np-complete-문제-implications-for-np-complete" class="level3">
+<h3 class="anchored" data-anchor-id="함의-양자-컴퓨터와-np-complete-문제-implications-for-np-complete">5. 🤯 함의: 양자 컴퓨터와 NP-Complete 문제 (Implications for NP-Complete)</h3>
+<p>이 “최적성” 증명(BBBV ’94)은 <strong>“양자 컴퓨터가 NP-Complete 문제를 효율적으로 풀 수 있는가?”</strong>라는 질문(NP <span class="math inline">\(\subseteq\)</span> BQP?)에 대한 강력한 <strong>“증거(evidence)”</strong>를 제공합니다.</p>
+<ul>
+<li><strong>Circuit-SAT (NP-Complete 문제):</strong> “회로 <span class="math inline">\(C\)</span>의 명세서(게이트 목록)를 <em>보고</em> <span class="math inline">\(F(x)=1\)</span>인 <span class="math inline">\(x\)</span>를 찾으시오.”</li>
+<li><strong>Grover (블랙박스 문제):</strong> “회로 <span class="math inline">\(C\)</span>를 <em>보지 못하고</em> <span class="math inline">\(F(x)=1\)</span>인 <span class="math inline">\(x\)</span>를 찾으시오.”</li>
+</ul>
+<p>BBBV ’94는 “보지 못하는” (더 쉬운) 문제조차 <span class="math inline">\(\Omega(\sqrt{N})\)</span> (지수적 시간)이 필요함을 증명했습니다. 이는 “보고 푸는” (더 어려운) NP-Complete 문제가 <span class="math inline">\(poly(n)\)</span> 시간에 풀릴 수 없을 것(즉, <strong>NP <span class="math inline">\(\not\subseteq\)</span> BQP</strong>)이라는 강력한 정황 증거입니다. (이는 Shor의 알고리즘이 P <span class="math inline">\(\neq\)</span> BQP (아마도)를 시사하는 것과 대조됩니다.)</p>
+<hr>
+</section>
+<section id="왜-푸리에-샘플링-hsp-패러다임은-검색에-실패하는가" class="level3">
+<h3 class="anchored" data-anchor-id="왜-푸리에-샘플링-hsp-패러다임은-검색에-실패하는가">6. ❌ 왜 “푸리에 샘플링” (HSP) 패러다임은 검색에 실패하는가?</h3>
+<p>Shor의 <span class="math inline">\(H-V_F-H\)</span> (Rotate-Compute-Rotate) 패러다임을 <span class="math inline">\(K=1\)</span> (표시된 항목이 1개, <span class="math inline">\(x^*\)</span>)인 검색 문제에 적용해 보겠습니다.</p>
+<ol type="1">
+<li><strong>[Rotate 1 (<span class="math inline">\(H^{\otimes n}\)</span>)]:</strong> <span class="math inline">\(|+\rangle = \frac{1}{\sqrt{N}} \sum_x |x\rangle\)</span></li>
+<li><strong>[Compute (<span class="math inline">\(V_F\)</span>)]:</strong> <span class="math inline">\(|f\rangle = V_F |+\rangle = \frac{1}{\sqrt{N}} \left( \sum_{x \neq x^*} |x\rangle - |x^*\rangle \right)\)</span></li>
+<li><strong>[Rotate 2 (<span class="math inline">\(H^{\otimes n}\)</span>)]:</strong> <span class="math inline">\(|\psi_{\text{final}}\rangle = H^{\otimes n} |f\rangle = \sum_s \tilde{f}(s) |s\rangle\)</span></li>
+</ol>
+<p><strong>결과 (실패):</strong> * L12에서 배웠듯이, <span class="math inline">\(\tilde{f}(0)\)</span> (푸리에 계수 <span class="math inline">\(s=0\)</span>)은 데이터의 <strong>평균(average) <span class="math inline">\(\mu\)</span></strong>입니다. * <span class="math inline">\(\mu = \text{avg}(f(x)) = \frac{(N-1) \cdot (+1) + 1 \cdot (-1)}{N} = \frac{N-2}{N} \approx 1\)</span> * <strong>거의 모든( <span class="math inline">\(\approx 100\%\)</span> ) 확률이 <span class="math inline">\(s=0...0\)</span>에 쏠려 있습니다.</strong> * 이 상태를 측정하면 <strong>거의 100% 확률로 <span class="math inline">\(s=0...0\)</span></strong> (평균값)이 나오며, 이는 <span class="math inline">\(x^*\)</span>의 위치에 대한 <strong>아무런 정보도 주지 않습니다.</strong></p>
+<hr>
+</section>
+<section id="grover의-진짜-아이디어-진폭-증폭-amplitude-amplification" class="level3">
+<h3 class="anchored" data-anchor-id="grover의-진짜-아이디어-진폭-증폭-amplitude-amplification">7. 💡 Grover의 “진짜” 아이디어: 진폭 증폭 (Amplitude Amplification)</h3>
+<p>Shor의 패러다임이 <span class="math inline">\(x^*\)</span>의 “위치” 정보를 “주파수” 공간으로 변환하는 데 실패했기 때문에, Grover는 “진폭”을 직접 증폭하는 <strong>“진폭 증폭(Amplitude Amplification)”</strong>이라는 완전히 다른 접근을 사용합니다.</p>
+<ul>
+<li><strong>Grover의 아이디어:</strong> <span class="math inline">\(U_f\)</span> (오라클 반사)와 <span class="math inline">\(U_s\)</span> (평균 반사)라는 <strong>두 개의 “반사(reflection)”</strong> 연산을 <strong><span class="math inline">\(T = O(\sqrt{N})\)</span>번 반복(iterate)</strong>하여 <span class="math inline">\(|x^*\rangle\)</span>의 진폭을 “펌핑”합니다.</li>
+</ul>
+<p><span class="math display">\[|\psi_{\text{final}}\rangle = (U_s \cdot U_f)^T |+\rangle\]</span></p>
+<hr>
+</section>
+<section id="q1-q2-grover의-메커니즘-how-and-why" class="level3">
+<h3 class="anchored" data-anchor-id="q1-q2-grover의-메커니즘-how-and-why">8. Q1 &amp; Q2: Grover의 메커니즘 (How? and Why?)</h3>
+<section id="연산자-1-u_f-oracle-compute" class="level4">
+<h4 class="anchored" data-anchor-id="연산자-1-u_f-oracle-compute">8.1. 연산자 1: <span class="math inline">\(U_f\)</span> (Oracle / “Compute”)</h4>
+<ul>
+<li><strong>목적:</strong> “표시된” 항목 <span class="math inline">\(x^*\)</span>의 위상만 뒤집습니다(flip). (L11의 “부호 오라클”)</li>
+<li><strong>정의:</strong> <span class="math inline">\(U_f: |x\rangle \mapsto (-1)^{F(x)} |x\rangle\)</span></li>
+<li><strong>비용:</strong> <span class="math inline">\(Q_F\)</span> 오라클 1회 호출.</li>
+</ul>
+</section>
+<section id="연산자-2-u_s-grover-diffusion-rotate" class="level4">
+<h4 class="anchored" data-anchor-id="연산자-2-u_s-grover-diffusion-rotate">8.2. 연산자 2: <span class="math inline">\(U_s\)</span> (Grover Diffusion / “Rotate”)</h4>
+<ul>
+<li><strong>목적:</strong> 모든 <span class="math inline">\(x\)</span>의 진폭을 <strong>전체 진폭의 평균(<span class="math inline">\(\mu\)</span>)</strong>에 대해 “반사(reflect)”시킵니다.</li>
+<li><strong>구현:</strong> <span class="math inline">\(U_s = H^{\otimes n} \cdot U_0 \cdot H^{\otimes n}\)</span>
+<ol type="1">
+<li><strong><span class="math inline">\(H^{\otimes n}\)</span>:</strong> 계산 기저(<span class="math inline">\(x\)</span>)에서 푸리에 기저(<span class="math inline">\(s\)</span>)로 회전.</li>
+<li><strong><span class="math inline">\(U_0 = 2|0\rangle\langle 0| - I\)</span>:</strong> <span class="math inline">\(|0...0\rangle\)</span> 상태를 <em>제외한</em> <strong>다른 모든 상태(<span class="math inline">\(s \neq 0\)</span>)</strong>의 위상을 <strong>-1로 뒤집습니다.</strong> (<span class="math inline">\(Q_{OR}\)</span> 회로로 구현)</li>
+<li><strong><span class="math inline">\(H^{\otimes n}\)</span>:</strong> 다시 계산 기저(<span class="math inline">\(x\)</span>)로 회전.</li>
+</ol></li>
+</ul>
+</section>
+<section id="진폭-증폭의-원리-why---k1-기준" class="level4">
+<h4 class="anchored" data-anchor-id="진폭-증폭의-원리-why---k1-기준">8.3. 진폭 증폭의 원리 (Why? - <span class="math inline">\(K=1\)</span> 기준)</h4>
+<p>(사용자 노트의 <code>(1/sqrtN) -&gt; (3/sqrtN) -&gt; (5/sqrtN)</code> 분석)</p>
+<ol type="1">
+<li><strong>[시작] <span class="math inline">\(T=0\)</span>:</strong> <span class="math inline">\(\text{Amp}(x^*) = 1/\sqrt{N}\)</span>. (평균 <span class="math inline">\(\mu \approx 1/\sqrt{N}\)</span>)</li>
+<li><strong>[Iter. 1]:</strong>
+<ul>
+<li><strong>(a) <span class="math inline">\(U_f\)</span> 적용 (Oracle):</strong> <span class="math inline">\(\text{Amp}(x^*) \to -1/\sqrt{N}\)</span>. (평균 <span class="math inline">\(\mu'\)</span>가 약간 낮아짐)</li>
+<li><strong>(b) <span class="math inline">\(U_s\)</span> 적용 (Reflect across mean <span class="math inline">\(\mu'\)</span>):</strong> <span class="math inline">\(x^*\)</span>의 진폭(<span class="math inline">\(-1/\sqrt{N}\)</span>)은 평균 <span class="math inline">\(\mu'\)</span>보다 훨씬 아래에 있으므로, 반사되어 <span class="math inline">\(\approx \mathbf{3/\sqrt{N}}\)</span>로 솟구칩니다.</li>
+</ul></li>
+<li><strong>[Iter. 2]:</strong>
+<ul>
+<li><strong>(a) <span class="math inline">\(U_f\)</span> 적용 (Oracle):</strong> <span class="math inline">\(\text{Amp}(x^*) \to -3/\sqrt{N}\)</span>.</li>
+<li><strong>(b) <span class="math inline">\(U_s\)</span> 적용 (Reflect across mean <span class="math inline">\(\mu''\)</span>):</strong> <span class="math inline">\(\text{Amp}(x^*) \approx \mathbf{5/\sqrt{N}}\)</span>로 증폭됩니다.</li>
+</ul></li>
+<li><strong>[Iter. T]:</strong> <span class="math inline">\(T\)</span>회 반복 후, <span class="math inline">\(\text{Amp}(x^*) \approx \frac{2T+1}{\sqrt{N}}\)</span> 입니다.</li>
+</ol>
+<hr>
+</section>
+</section>
+<section id="최적의-반복-횟수와-과회전-경고" class="level3">
+<h3 class="anchored" data-anchor-id="최적의-반복-횟수와-과회전-경고">9. 🛑 최적의 반복 횟수와 “과회전” 경고</h3>
+<ul>
+<li><strong>최적 반복 (Optimal Iterations):</strong> <span class="math inline">\(\text{Amp}(x^*)\)</span>가 <span class="math inline">\(1\)</span>에 가까워질 때 중단해야 합니다. <span class="math display">\[T_{\text{opt}} \approx \frac{\pi}{4}\sqrt{N/K}\]</span> (<span class="math inline">\(K=1\)</span>일 때 <span class="math inline">\(T_{\text{opt}} \approx \frac{\pi}{4}\sqrt{N} \approx 0.78 \sqrt{N}\)</span>)</li>
+<li><strong>측정:</strong> <span class="math inline">\(T_{\text{opt}}\)</span>번 반복 후, 상태를 <strong>측정(Measure)</strong>하면 <span class="math inline">\(x^*\)</span> (또는 “1” 중 하나)를 <strong>매우 높은 확률</strong>로 얻습니다.</li>
+<li><strong>경고: “과회전” (Overshooting):</strong> (사용자 노트: <code>If you are not careful, the ampl. can actually start going down.</code>) Grover의 알고리즘은 <span class="math inline">\(T_{\text{opt}}\)</span>보다 <strong>더 많이</strong> 반복하면, 진폭이 <span class="math inline">\(1\)</span>을 “지나쳐” 다시 <span class="math inline">\(0\)</span>을 향해 줄어들어 성공 확률이 낮아집니다.</li>
+<li><strong>최종 확인:</strong> <span class="math inline">\(O(\sqrt{N/K})\)</span>번의 쿼리로 찾은 <span class="math inline">\(x'\)</span>가 정말 <span class="math inline">\(F(x')=1\)</span>인지 확인하기 위해, <strong>고전적으로 1번의 쿼리</strong>를 추가로 수행하여 검증(verify)합니다.</li>
+</ul>
+
+
+</section>
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
